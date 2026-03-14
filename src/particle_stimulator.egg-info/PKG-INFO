@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: particle-stimulator
+Version: 0.1.0
+Summary: Particle physics simulator platform backend runtime
+Requires-Python: >=3.11
+Provides-Extra: ml
+Provides-Extra: optional
