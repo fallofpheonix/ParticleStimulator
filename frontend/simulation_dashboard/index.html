@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Particle Stimulator Control Surface</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Particle Stimulator</p>
+        <h1>Frontend Control Surface</h1>
+      </div>
+      <div class="status-cluster">
+        <div class="status-pill" id="healthStatus">Backend: checking</div>
+        <div class="status-pill" id="simulationStatus">Simulation: idle</div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="panel controls">
+        <div class="panel-header">
+          <h2>Run Configuration</h2>
+          <p>Backend-backed simulation parameters</p>
+        </div>
+        <form id="controlForm" class="control-grid">
+          <label>
+            <span>Beam Energy (GeV)</span>
+            <input type="range" min="100" max="7000" step="50" name="beam_energy_gev">
+            <output data-for="beam_energy_gev"></output>
+          </label>
+          <label>
+            <span>Magnetic Field (T)</span>
+            <input type="range" min="0" max="8" step="0.1" name="magnetic_field_t">
+            <output data-for="magnetic_field_t"></output>
+          </label>
+          <label>
+            <span>RF Field (V/m)</span>
+            <input type="range" min="0" max="800000" step="10000" name="rf_field_v_m">
+            <output data-for="rf_field_v_m"></output>
+          </label>
+          <label>
+            <span>Quadrupole Gradient (T/m)</span>
+            <input type="range" min="0" max="1" step="0.01" name="quadrupole_gradient_t_per_m">
+            <output data-for="quadrupole_gradient_t_per_m"></output>
+          </label>
+          <label>
+            <span>Particles / Side</span>
+            <input type="range" min="2" max="16" step="1" name="beam_particles_per_side">
+            <output data-for="beam_particles_per_side"></output>
+          </label>
+          <label>
+            <span>Beam Spread (m)</span>
+            <input type="range" min="0.002" max="0.08" step="0.002" name="beam_spread_m">
+            <output data-for="beam_spread_m"></output>
+          </label>
+          <label>
+            <span>Longitudinal Spacing (m)</span>
+            <input type="range" min="0.002" max="0.05" step="0.002" name="longitudinal_spacing_m">
+            <output data-for="longitudinal_spacing_m"></output>
+          </label>
+          <label>
+            <span>Interaction Radius (m)</span>
+            <input type="range" min="0.01" max="0.12" step="0.005" name="interaction_radius_m">
+            <output data-for="interaction_radius_m"></output>
+          </label>
+          <label>
+            <span>Steps</span>
+            <input type="range" min="10" max="400" step="10" name="steps">
+            <output data-for="steps"></output>
+          </label>
+          <label>
+            <span>Seed</span>
+            <input type="number" min="0" max="999999" step="1" name="seed">
+          </label>
+          <div class="actions">
+            <button type="submit" id="runButton">Run Simulation</button>
+            <button type="button" id="resetButton" class="ghost">Reset Defaults</button>
+          </div>
+        </form>
+      </aside>
+
+      <section class="panel visualization">
+        <div class="panel-header">
+          <h2>Beamline View</h2>
+          <p>Client animation driven by backend particle state</p>
+        </div>
+        <canvas id="beamlineCanvas"></canvas>
+        <div class="legend">
+          <span><i class="swatch beam-a"></i> Beam A</span>
+          <span><i class="swatch beam-b"></i> Beam B</span>
+          <span><i class="swatch secondary"></i> Secondary Products</span>
+          <span><i class="swatch collision"></i> Collision Vertex</span>
+        </div>
+      </section>
+
+      <aside class="panel summary">
+        <div class="panel-header">
+          <h2>Run Summary</h2>
+          <p>Server response aggregates</p>
+        </div>
+        <div class="metric-grid" id="metricGrid"></div>
+        <section class="subpanel">
+          <h3>Species Inventory</h3>
+          <div id="speciesList" class="kv-list"></div>
+        </section>
+        <section class="subpanel">
+          <h3>Collision Events</h3>
+          <div id="collisionList" class="log-list compact"></div>
+        </section>
+      </aside>
+    </main>
+
+    <section class="bottom-row">
+      <section class="panel chart-panel">
+        <div class="panel-header">
+          <h2>Invariant Mass Histogram</h2>
+          <p>Collision mass bins from backend output</p>
+        </div>
+        <canvas id="histogramCanvas"></canvas>
+      </section>
+      <section class="panel chart-panel">
+        <div class="panel-header">
+          <h2>Calorimeter Occupancy</h2>
+          <p>Phi-binned energy deposition</p>
+        </div>
+        <div id="calorimeterBars" class="bar-list"></div>
+      </section>
+      <section class="panel chart-panel">
+        <div class="panel-header">
+          <h2>Timeline</h2>
+          <p>Structured event log from the engine</p>
+        </div>
+        <div id="timelineList" class="log-list"></div>
+      </section>
+    </section>
+  </div>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

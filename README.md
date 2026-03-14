@@ -13,6 +13,11 @@ Current repository status is structural definition plus an executable Python MVP
 
 ## Project Structure
 ```text
+frontend/
+├── simulation_dashboard/  Browser-facing static bundle mirror
+├── event_viewer/          Reserved UI workspace
+└── ui_controls/           Reserved component workspace
+
 src/
 ├── accelerator/   Beamline, magnets, RF cavity, vacuum aperture
 ├── core/          Constants, Vector3, Particle
@@ -54,6 +59,7 @@ PYTHONPATH=src .venv/bin/python machine_learning/event_classifier/higgs_classifi
 - Runtime entrypoint: [src/web/server.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/server.py)
 - API serializer: [src/web/service.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/service.py)
 - Static bundle: [src/web/static/index.html](/Users/fallofpheonix/Project/ParticleStimulator/src/web/static/index.html)
+- Frontend mirror: [frontend/simulation_dashboard/index.html](/Users/fallofpheonix/Project/ParticleStimulator/frontend/simulation_dashboard/index.html)
 - Compatibility wrapper: [backend/server.py](/Users/fallofpheonix/Project/ParticleStimulator/backend/server.py)
 - API endpoints:
   - `GET /api/health`
