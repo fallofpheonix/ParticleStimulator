@@ -8,15 +8,35 @@ import EventCard from "./EventCard.jsx";
 import ParticleList from "./ParticleList.jsx";
 
 const EventStream = memo(function EventStream() {
-  const events = useSimulationStore((state) => state.getFilteredEvents());
+  const rawEvents = useSimulationStore((state) => state.eventStream.events);
   const filters = useSimulationStore((state) => state.eventStream.filters);
   const setEventFilter = useSimulationStore((state) => state.setEventFilter);
   const selectedEvent = useSimulationStore(selectSelectedEvent);
 
+  const events = useMemo(() => {
+    let filtered = rawEvents;
+    if (filters.query) {
+      const query = filters.query.toLowerCase();
+      filtered = filtered.filter(
+        (event) =>
+          String(event.event_id).toLowerCase().includes(query) ||
+          (event.particles ?? []).some((particle) =>
+            (particle.type ?? "").toLowerCase().includes(query)
+          )
+      );
+    }
+    if (filters.type && filters.type !== "all") {
+      filtered = filtered.filter((event) =>
+        (event.particles ?? []).some((particle) => particle.type === filters.type)
+      );
+    }
+    return filtered;
+  }, [rawEvents, filters]);
+
   const particleTypes = useMemo(
     () =>
-      [...new Set(events.flatMap((event) => (event.particles ?? []).map((particle) => particle.type)))].sort(),
-    [events]
+      [...new Set(rawEvents.flatMap((event) => (event.particles ?? []).map((particle) => particle.type)))].sort(),
+    [rawEvents]
   );
 
   return (
