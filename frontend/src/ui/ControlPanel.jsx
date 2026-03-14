@@ -1,6 +1,5 @@
 import { memo, useCallback } from "react";
 
-import { defaultPhysicsParameters } from "@app/defaults";
 import { ConfigPanel } from "@config";
 import { eventBus } from "@services/eventBus";
 import { useSimulationStore } from "@store/simulationStore";
@@ -11,14 +10,15 @@ const ControlPanel = memo(function ControlPanel() {
   const error = useSimulationStore((state) => state.simulationState.error);
   const transport = useSimulationStore((state) => state.simulationState.transport);
   const hydrateDefaults = useSimulationStore((state) => state.hydrateDefaults);
+  const defaultParameters = useSimulationStore((state) => state.settings.defaultPhysicsParameters);
 
   const runSimulation = useCallback(async () => {
     await eventBus.runSimulation(parameters);
   }, [parameters]);
 
   const resetDefaults = useCallback(() => {
-    hydrateDefaults(defaultPhysicsParameters);
-  }, [hydrateDefaults]);
+    hydrateDefaults(defaultParameters);
+  }, [defaultParameters, hydrateDefaults]);
 
   return (
     <>

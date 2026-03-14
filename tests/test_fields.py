@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from core.constants import ELEMENTARY_CHARGE_C
-from core.particle import Particle
-from core.vector import Vector3
-from physics.electromagnetism import acceleration_from_force, lorentz_force
+from src.core.constants import ELEMENTARY_CHARGE_C
+from src.core.particle import Particle
+from src.core.vector import Vector3
+from src.physics.electromagnetism import acceleration_from_force, lorentz_force
 
 
 class FieldTests(unittest.TestCase):

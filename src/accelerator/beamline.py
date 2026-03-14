@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from accelerator.magnets import DipoleMagnet, QuadrupoleMagnet
-from accelerator.rf_cavity import RFCavity
-from accelerator.vacuum_chamber import VacuumChamber
-from core.vector import Vector3
+from src.accelerator.magnets import DipoleMagnet, QuadrupoleMagnet
+from src.accelerator.rf_cavity import RFCavity
+from src.accelerator.vacuum_chamber import VacuumChamber
+from src.core.vector import Vector3
 
 
 @dataclass(slots=True)

@@ -23,6 +23,8 @@ src/
   assets/
   collaboration/
   experiments/
+  ml/
+  settings/
   store/
   services/
 ```
@@ -37,6 +39,17 @@ npm run dev
 - `GET /api/health`
 - `GET /api/defaults`
 - `POST /api/simulate`
+- `GET /api/events/recent`
+- `POST /api/ml/train`
+- `GET /api/ml/status`
+- `POST /api/ml/predict`
+- `ws://127.0.0.1:8001/events`
+
+## New Frontend Systems
+- `experiments/`: run registry and export surface
+- `ml/`: model training, metrics, and event prediction
+- `settings/`: theme, API/WebSocket connection settings, persisted simulation defaults
+- `services/exportService.js`: JSON/CSV/PNG export helpers
 
 ## Legacy Files
 - `simulation_dashboard/`: plain-JS prototype retained for reference

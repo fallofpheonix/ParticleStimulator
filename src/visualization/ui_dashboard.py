@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from simulation.engine import SimulationResult
+from src.simulation.engine import SimulationResult
 
 
 def dashboard_metrics(result: SimulationResult) -> dict[str, float]:

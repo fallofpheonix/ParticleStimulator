@@ -19,6 +19,17 @@
   --radius: 20px;
 }
 
+[data-theme="light"] {
+  --bg: #dfe9f7;
+  --bg-deep: #f5f8fc;
+  --panel: rgba(255, 255, 255, 0.88);
+  --panel-strong: rgba(247, 251, 255, 0.96);
+  --border: rgba(29, 78, 137, 0.18);
+  --text: #102235;
+  --muted: #526579;
+  --shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -81,6 +92,10 @@ select {
 
 .bottom-row {
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+
+.bottom-row--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .dashboard-grid {
@@ -810,6 +825,7 @@ button:disabled {
 @media (max-width: 1200px) {
   .workspace,
   .bottom-row,
+  .bottom-row--triple,
   .dashboard-grid,
   .analytics-grid,
   .analytics-grid--wide,

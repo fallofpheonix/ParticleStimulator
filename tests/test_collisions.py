@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from core.particle import Particle
-from core.vector import Vector3
-from physics.collisions import should_collide, synthesize_collision
-from simulation.engine import SimulationEngine
+from src.core.particle import Particle
+from src.core.vector import Vector3
+from src.physics.collisions import should_collide, synthesize_collision
+from src.simulation.engine import SimulationEngine
 
 
 class CollisionTests(unittest.TestCase):

@@ -1,6 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
 
-import { defaultPhysicsParameters } from "@app/defaults";
 import { useSimulationStore } from "@store/simulationStore";
 import { eventBus } from "@services/eventBus";
 
@@ -11,6 +10,9 @@ const AnalyticsDashboard = lazy(() => import("@analytics/Dashboard.jsx"));
 const EventStream = lazy(() => import("@events/EventStream.jsx"));
 const Timeline = lazy(() => import("@timeline/TimelineBar.jsx"));
 const DebugPanel = lazy(() => import("@debug/DebugPanel.jsx"));
+const ExperimentManager = lazy(() => import("@experiments/ExperimentManager.jsx"));
+const MLPanel = lazy(() => import("@ml/MLPanel.jsx"));
+const SettingsPanel = lazy(() => import("@settings/SettingsPanel.jsx"));
 
 const fallback = <div className="empty-state">Loading simulator module…</div>;
 
@@ -19,26 +21,34 @@ export default function App() {
   const status = useSimulationStore((state) => state.simulationState.status);
   const payload = useSimulationStore((state) => state.simulationState.payload);
   const parameters = useSimulationStore((state) => state.simulationParameters);
+  const persistedDefaults = useSimulationStore((state) => state.settings.defaultPhysicsParameters);
+  const theme = useSimulationStore((state) => state.settings.theme);
   const hydrateDefaults = useSimulationStore((state) => state.hydrateDefaults);
 
   useEffect(() => {
     eventBus.checkHealth();
     eventBus.loadDefaults();
+    eventBus.startRecentEventsPolling();
     eventBus.connectWebSocket();
     return () => eventBus.disconnectWebSocket();
   }, []);
 
   useEffect(() => {
     if (!defaultsLoaded) {
-      hydrateDefaults(defaultPhysicsParameters);
+      hydrateDefaults(persistedDefaults);
     }
-  }, [defaultsLoaded, hydrateDefaults]);
+  }, [defaultsLoaded, hydrateDefaults, persistedDefaults]);
 
   useEffect(() => {
     if (defaultsLoaded && !payload && status === "idle") {
       eventBus.runSimulation(parameters).catch(() => {});
     }
   }, [defaultsLoaded, payload, status, parameters]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+  }, [theme]);
 
   return (
     <Suspense fallback={fallback}>
@@ -71,6 +81,21 @@ export default function App() {
         debugPanel={
           <Suspense fallback={fallback}>
             <DebugPanel />
+          </Suspense>
+        }
+        experiments={
+          <Suspense fallback={fallback}>
+            <ExperimentManager />
+          </Suspense>
+        }
+        mlPanel={
+          <Suspense fallback={fallback}>
+            <MLPanel />
+          </Suspense>
+        }
+        settingsPanel={
+          <Suspense fallback={fallback}>
+            <SettingsPanel />
           </Suspense>
         }
       />

@@ -22,6 +22,8 @@ export default defineConfig({
       { find: "@assets", replacement: resolvePath("./src/assets") },
       { find: "@collaboration", replacement: resolvePath("./src/collaboration") },
       { find: "@experiments", replacement: resolvePath("./src/experiments") },
+      { find: "@ml", replacement: resolvePath("./src/ml") },
+      { find: "@settings", replacement: resolvePath("./src/settings") },
       { find: "@store", replacement: resolvePath("./src/store") },
       { find: "@services", replacement: resolvePath("./src/services") }
     ]

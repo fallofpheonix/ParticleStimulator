@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from accelerator.beamline import Beamline
-from core.particle import Particle
-from detectors.calorimeter import Calorimeter, EnergyDeposit
-from detectors.event_logger import EventLogger
-from detectors.tracker import SiliconTracker, TrackerHit
-from physics.collisions import CollisionEvent, should_collide, synthesize_collision
-from physics.decay_models import decay_products
-from simulation.integrator import advance_particle
-from simulation.timestep import choose_time_step
+from src.accelerator.beamline import Beamline
+from src.core.particle import Particle
+from src.detectors.calorimeter import Calorimeter, EnergyDeposit
+from src.detectors.event_logger import EventLogger
+from src.detectors.tracker import SiliconTracker, TrackerHit
+from src.physics.collisions import CollisionEvent, should_collide, synthesize_collision
+from src.physics.decay_models import decay_products
+from src.simulation.integrator import advance_particle
+from src.simulation.timestep import choose_time_step
 
 
 @dataclass(slots=True)

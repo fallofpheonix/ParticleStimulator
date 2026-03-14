@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.particle import Particle
+from src.core.particle import Particle
 
 
 def summarize_particles(particles: list[Particle]) -> list[dict[str, object]]:

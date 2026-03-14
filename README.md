@@ -1,68 +1,116 @@
 # Particle Stimulator
 
-## Status
-Current repository status is structural definition plus an executable Python MVP.
+## Runtime Architecture
 
-## Implemented Scope
-- Lorentz-force particle transport in a simplified beamline
-- Uniform dipole field, weak quadrupole focusing, and RF cavity acceleration
-- Deterministic toy collision synthesis for close, head-on particles
-- Silicon tracker hit generation and calorimeter energy deposits
-- JSON event logging, text reporting, and example entry points
-- Higgs dataset baseline classification pipeline with model artifact export
+Authoritative runtime layout:
 
-## Project Structure
 ```text
-frontend/
-├── simulation_dashboard/  Browser-facing static bundle mirror
-├── event_viewer/          Reserved UI workspace
-└── ui_controls/           Reserved component workspace
-
 src/
-├── accelerator/   Beamline, magnets, RF cavity, vacuum aperture
-├── core/          Constants, Vector3, Particle
-├── detectors/     Tracker, calorimeter, event logger
-├── physics/       Relativity, electromagnetism, collision, decay
-├── analysis/      Higgs dataset loading, training, evaluation, artifact export
-├── simulation/    Time step selection, integration, engine
-├── visualization/ Text report and dashboard metrics
-└── web/           HTTP server, API serialization, static frontend assets
+├── web/               HTTP API, event stream, ML service, static serving
+├── simulation_core/   Integrated research-grade simulation pipeline from files.zip
+├── accelerator/       Legacy MVP physics modules still used by unit tests
+├── analysis/
+├── core/
+├── detectors/
+├── physics/
+├── simulation/
+├── visualization/
+├── models/            Reserved adapter package
+├── services/          Reserved adapter package
+└── utils/             Reserved utility package
+
+frontend/
+├── src/               React/Vite application
+├── public/
+└── simulation_dashboard/  Legacy static prototype reference
+
+tests/
+
+backend/
+└── server.py          Launcher shim only
 ```
 
-## Runtime
-- Python `>=3.11`
-- Core simulator: no third-party runtime dependencies
-- ML pipeline: `numpy`, `pandas`, `scikit-learn`, `joblib`
-- Optional XGBoost backend: install [requirements-xgboost.txt](/Users/fallofpheonix/Project/ParticleStimulator/requirements-xgboost.txt) and satisfy native OpenMP requirements on macOS
+Removed architectural drift:
+- duplicate backend API/controller tree under `backend/api_server/`
+- duplicate cached tree under `backend/src/`
+- all active backend execution now resolves from `src/`
 
-## Usage
+## Active Entry Points
+
+- Backend HTTP server: [src/web/server.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/server.py)
+- Backend simulation adapter: [src/web/service.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/service.py)
+- Integrated simulation core: [src/simulation_core](/Users/fallofpheonix/Project/ParticleStimulator/src/simulation_core)
+- Frontend app: [frontend/src](/Users/fallofpheonix/Project/ParticleStimulator/frontend/src)
+- Optional launcher: [backend/server.py](/Users/fallofpheonix/Project/ParticleStimulator/backend/server.py)
+
+## Simulation Core
+
+`files.zip` is vendored under `src/simulation_core/` and exposed through the existing HTTP service layer. No second API controller is used.
+
+Pipeline:
+
+```text
+beam generation
+→ accelerator transport
+→ collision generation
+→ detector simulation
+→ event reconstruction
+→ physics analysis
+→ JSON payload adaptation in src/web/service.py
+```
+
+The frontend contract remains the same:
+- `summary`
+- `initial_particles`
+- `final_particles`
+- `collisions`
+- `tracker_hits`
+- `calorimeter_hits`
+- `detector_hits`
+- `timeline`
+
+## API
+
+- `GET /api/health`
+- `GET /api/defaults`
+- `GET /api/ml/status`
+- `GET /api/events/recent`
+- `POST /api/simulate`
+- `POST /api/ml/train`
+- `POST /api/ml/predict`
+
+If `frontend/dist/index.html` exists, the backend serves the built React app. Otherwise it falls back to `src/web/static/`.
+
+## Local Run
+
+Backend:
+
 ```bash
-PYTHONPATH=src python3 examples/beam_simulation.py
-PYTHONPATH=src python3 examples/proton_collision.py
-PYTHONPATH=src python3 -m unittest discover -s tests
-PYTHONPATH=src python3 -m web.server
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-PYTHONPATH=src .venv/bin/python machine_learning/event_classifier/higgs_classifier.py \
-  --dataset HIGGS.csv.gz \
-  --sample-size 5000 \
-  --artifact data/processed_events/higgs_baseline.joblib
-.venv/bin/pip install -r requirements-xgboost.txt  # optional
+python3 backend/server.py
 ```
 
-## Constraints
-- This is not a research-grade simulator.
-- Collision and detector response are intentionally simplified and deterministic.
-- The implementation is designed to establish execution flow, interfaces, and testable structure.
-- The ML pipeline prefers `xgboost` but falls back to scikit-learn histogram boosting when the native XGBoost runtime is unavailable.
+Frontend dev:
 
-## Web Dashboard
-- Runtime entrypoint: [src/web/server.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/server.py)
-- API serializer: [src/web/service.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/service.py)
-- Static bundle: [src/web/static/index.html](/Users/fallofpheonix/Project/ParticleStimulator/src/web/static/index.html)
-- Frontend mirror: [frontend/simulation_dashboard/index.html](/Users/fallofpheonix/Project/ParticleStimulator/frontend/simulation_dashboard/index.html)
-- Compatibility wrapper: [backend/server.py](/Users/fallofpheonix/Project/ParticleStimulator/backend/server.py)
-- API endpoints:
-  - `GET /api/health`
-  - `GET /api/defaults`
-  - `POST /api/simulate`
-- Start with `make run-web`, then open `http://127.0.0.1:8000`
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend production build:
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+Tests:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+## Packaging
+
+`src/` is now a real Python package root. Runtime and tests import `src.*` directly. `setup.py` packages `src` and `src.*` and declares the backend runtime dependencies.

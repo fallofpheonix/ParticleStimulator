@@ -6,7 +6,10 @@ const MainLayout = memo(function MainLayout({
   analytics,
   eventStream,
   timeline,
-  debugPanel
+  debugPanel,
+  experiments,
+  mlPanel,
+  settingsPanel
 }) {
   return (
     <div className="shell">
@@ -27,6 +30,12 @@ const MainLayout = memo(function MainLayout({
       <section className="bottom-row">
         <section className="panel chart-panel">{analytics}</section>
         <section className="panel chart-panel">{timeline}</section>
+      </section>
+
+      <section className="bottom-row bottom-row--triple">
+        <section className="panel chart-panel">{experiments}</section>
+        <section className="panel chart-panel">{mlPanel}</section>
+        <section className="panel chart-panel">{settingsPanel}</section>
       </section>
     </div>
   );

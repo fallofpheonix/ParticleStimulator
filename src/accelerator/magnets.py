@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.vector import Vector3
+from src.core.vector import Vector3
 
 
 @dataclass(frozen=True, slots=True)

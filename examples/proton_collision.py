@@ -4,11 +4,11 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
 
-from core.particle import Particle
-from core.vector import Vector3
-from simulation.engine import SimulationEngine
+from src.core.particle import Particle
+from src.core.vector import Vector3
+from src.simulation.engine import SimulationEngine
 
 
 def main() -> None:

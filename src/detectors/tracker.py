@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.particle import Particle
-from core.vector import Vector3
+from src.core.particle import Particle
+from src.core.vector import Vector3
 
 
 @dataclass(frozen=True, slots=True)

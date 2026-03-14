@@ -1,6 +1,6 @@
 """Analysis and offline training utilities."""
 
-from analysis.higgs import (
+from src.analysis.higgs import (
     FEATURE_NAMES,
     HiggsTrainingConfig,
     HiggsTrainingMetrics,

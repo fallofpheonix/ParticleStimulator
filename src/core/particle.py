@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import itertools
 
-from core.constants import PARTICLE_DB, SPEED_OF_LIGHT_M_S
-from core.vector import Vector3
-from physics.relativity import gamma_from_speed
+from src.core.constants import PARTICLE_DB, SPEED_OF_LIGHT_M_S
+from src.core.vector import Vector3
+from src.physics.relativity import gamma_from_speed
 
 
 _particle_ids = itertools.count(1)

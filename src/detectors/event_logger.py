@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict
 import json
 
-from detectors.calorimeter import EnergyDeposit
-from detectors.tracker import TrackerHit
-from physics.collisions import CollisionEvent
+from src.detectors.calorimeter import EnergyDeposit
+from src.detectors.tracker import TrackerHit
+from src.physics.collisions import CollisionEvent
 
 
 class EventLogger:

@@ -6,16 +6,19 @@ import threading
 import unittest
 from urllib import request
 
-from web.server import ParticleStimulatorHandler
-from web.service import simulate_payload
+from src.web.server import ParticleStimulatorHandler
+from src.web.service import simulate_payload
 
 
 class WebServiceTests(unittest.TestCase):
     def test_simulate_payload_contains_frontend_fields(self) -> None:
-        payload = simulate_payload({"beam_particles_per_side": 4, "steps": 80, "seed": 11})
+        payload = simulate_payload({"particleCount": 4, "simulationSteps": 80, "beamEnergy": 6200, "seed": 11})
         self.assertIn("summary", payload)
         self.assertIn("initial_particles", payload)
         self.assertIn("final_particles", payload)
+        self.assertIn("particles", payload)
+        self.assertIn("tracks", payload)
+        self.assertIn("detector_hits", payload)
         self.assertIn("timeline", payload)
         self.assertGreaterEqual(len(payload["collisions"]), 1)
         self.assertTrue(all("product_ids" in event for event in payload["collisions"]))
@@ -31,9 +34,13 @@ class WebServiceTests(unittest.TestCase):
                 health = json.load(response)
             self.assertEqual(health["status"], "ok")
 
+            with request.urlopen(f"http://{host}:{port}/api/ml/status", timeout=5) as response:
+                ml_status = json.load(response)
+            self.assertIn("status", ml_status)
+
             simulate_request = request.Request(
                 f"http://{host}:{port}/api/simulate",
-                data=json.dumps({"beam_particles_per_side": 4, "steps": 40, "seed": 3}).encode("utf-8"),
+                data=json.dumps({"particleCount": 4, "simulationSteps": 40, "beamEnergy": 6100, "seed": 3}).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
@@ -41,10 +48,20 @@ class WebServiceTests(unittest.TestCase):
                 payload = json.load(response)
             self.assertIn("summary", payload)
             self.assertIn("collisions", payload)
+            self.assertIn("particles", payload)
+            self.assertIn("detector_hits", payload)
+            self.assertGreaterEqual(len(payload["collisions"]), 1)
+
+            with request.urlopen(f"http://{host}:{port}/api/events/recent", timeout=5) as response:
+                recent = json.load(response)
+            self.assertIn("events", recent)
+            self.assertGreaterEqual(len(recent["events"]), 1)
 
             with request.urlopen(f"http://{host}:{port}/", timeout=5) as response:
                 index = response.read().decode("utf-8")
-            self.assertIn("Particle Stimulator Control Surface", index)
+            self.assertTrue(
+                "Particle Stimulator Control Surface" in index or "<title>Particle Stimulator</title>" in index
+            )
         finally:
             server.shutdown()
             server.server_close()

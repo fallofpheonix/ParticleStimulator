@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import itertools
 
-from core.constants import GEV_TO_J, SPEED_OF_LIGHT_M_S
-from core.particle import Particle
-from core.vector import Vector3
+from src.core.constants import GEV_TO_J, SPEED_OF_LIGHT_M_S
+from src.core.particle import Particle
+from src.core.vector import Vector3
 
 
 _event_ids = itertools.count(1)

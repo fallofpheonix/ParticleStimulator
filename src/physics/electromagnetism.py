@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from core.particle import Particle
-from core.vector import Vector3
+from src.core.particle import Particle
+from src.core.vector import Vector3
 
 
 def lorentz_force(particle: Particle, electric_field: Vector3, magnetic_field: Vector3) -> Vector3:

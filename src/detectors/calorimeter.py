@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 
-from core.constants import GEV_TO_J
-from core.particle import Particle
+from src.core.constants import GEV_TO_J
+from src.core.particle import Particle
 
 
 @dataclass(frozen=True, slots=True)

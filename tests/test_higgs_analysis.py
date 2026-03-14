@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from analysis.higgs import HiggsTrainingConfig, _try_import_xgboost, discover_higgs_dataset, train_higgs_baseline
+from src.analysis.higgs import HiggsTrainingConfig, _try_import_xgboost, discover_higgs_dataset, train_higgs_baseline
 
 
 _HAS_ML_STACK = all(

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import unittest
 
-from core.constants import PARTICLE_DB
-from core.particle import Particle
-from core.vector import Vector3
+from src.core.constants import PARTICLE_DB
+from src.core.particle import Particle
+from src.core.vector import Vector3
 
 
 class ParticleTests(unittest.TestCase):

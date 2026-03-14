@@ -8,10 +8,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from web.service import SimulationRequest, simulate_payload
+from src.web.event_stream import event_broker
+from src.web.ml_service import ml_service
+from src.web.service import SimulationRequest, simulate_payload
 
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+FRONTEND_DIST_DIR = ROOT_DIR / "frontend" / "dist"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+ACTIVE_STATIC_DIR = FRONTEND_DIST_DIR if (FRONTEND_DIST_DIR / "index.html").exists() else STATIC_DIR
 
 
 def _json_bytes(payload: dict[str, object]) -> bytes:
@@ -32,6 +37,7 @@ class ParticleStimulatorHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "beam_energy_gev": defaults.beam_energy_gev,
+                    "beam_intensity": defaults.beam_intensity,
                     "magnetic_field_t": defaults.magnetic_field_t,
                     "rf_field_v_m": defaults.rf_field_v_m,
                     "quadrupole_gradient_t_per_m": defaults.quadrupole_gradient_t_per_m,
@@ -39,16 +45,24 @@ class ParticleStimulatorHandler(BaseHTTPRequestHandler):
                     "beam_spread_m": defaults.beam_spread_m,
                     "longitudinal_spacing_m": defaults.longitudinal_spacing_m,
                     "interaction_radius_m": defaults.interaction_radius_m,
+                    "event_probability": defaults.event_probability,
+                    "aperture_radius_m": defaults.aperture_radius_m,
                     "steps": defaults.steps,
                     "seed": defaults.seed,
                 },
             )
             return
+        if parsed.path == "/api/ml/status":
+            self._write_json(HTTPStatus.OK, ml_service.status())
+            return
+        if parsed.path == "/api/events/recent":
+            self._write_json(HTTPStatus.OK, {"events": event_broker.recent_events()})
+            return
         self._serve_static(parsed.path)
 
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
-        if parsed.path != "/api/simulate":
+        if parsed.path not in {"/api/simulate", "/api/ml/train", "/api/ml/predict"}:
             self._write_json(HTTPStatus.NOT_FOUND, {"error": "unknown endpoint"})
             return
 
@@ -58,15 +72,26 @@ class ParticleStimulatorHandler(BaseHTTPRequestHandler):
             payload = json.loads(raw_body.decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("payload must be an object")
-            response = simulate_payload(payload)
+            if parsed.path == "/api/simulate":
+                response = simulate_payload(payload)
+                status = HTTPStatus.OK
+            elif parsed.path == "/api/ml/train":
+                response = ml_service.start_training(payload)
+                status = HTTPStatus.ACCEPTED
+            else:
+                response = ml_service.predict(payload)
+                status = HTTPStatus.OK
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
             self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        except RuntimeError as exc:
+            self._write_json(HTTPStatus.CONFLICT, {"error": str(exc)})
             return
         except Exception as exc:  # pragma: no cover - top-level server safety
             self._write_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"simulation failure: {exc}"})
             return
 
-        self._write_json(HTTPStatus.OK, response)
+        self._write_json(status, response)
 
     def _write_json(self, status: HTTPStatus, payload: dict[str, object]) -> None:
         body = _json_bytes(payload)
@@ -79,14 +104,14 @@ class ParticleStimulatorHandler(BaseHTTPRequestHandler):
 
     def _serve_static(self, raw_path: str) -> None:
         relative = raw_path.lstrip("/") or "index.html"
-        candidate = (STATIC_DIR / relative).resolve()
-        if STATIC_DIR.resolve() not in candidate.parents and candidate != STATIC_DIR.resolve():
+        candidate = (ACTIVE_STATIC_DIR / relative).resolve()
+        if ACTIVE_STATIC_DIR.resolve() not in candidate.parents and candidate != ACTIVE_STATIC_DIR.resolve():
             self._write_json(HTTPStatus.FORBIDDEN, {"error": "invalid path"})
             return
         if candidate.is_dir():
             candidate = candidate / "index.html"
         if not candidate.exists():
-            candidate = STATIC_DIR / "index.html"
+            candidate = ACTIVE_STATIC_DIR / "index.html"
         content = candidate.read_bytes()
         content_type, _ = mimetypes.guess_type(str(candidate))
         self.send_response(HTTPStatus.OK)

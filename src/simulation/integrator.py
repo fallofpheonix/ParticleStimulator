@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from accelerator.beamline import Beamline
-from core.particle import Particle
-from physics.electromagnetism import acceleration_from_force, lorentz_force
+from src.accelerator.beamline import Beamline
+from src.core.particle import Particle
+from src.physics.electromagnetism import acceleration_from_force, lorentz_force
 
 
 def advance_particle(particle: Particle, beamline: Beamline, dt_s: float) -> None:

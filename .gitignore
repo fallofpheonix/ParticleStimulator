@@ -2,6 +2,11 @@
 .venv/
 __pycache__/
 *.py[cod]
+**/__pycache__/
+backend/src/
+frontend/dist/
+frontendofpraticlestimulator/
+files.zip
 
 .pytest_cache/
 .mypy_cache/

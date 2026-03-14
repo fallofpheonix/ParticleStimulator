@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from core.constants import SPEED_OF_LIGHT_M_S
+from src.core.constants import SPEED_OF_LIGHT_M_S
 
 
 def gamma_from_speed(speed_m_s: float) -> float:

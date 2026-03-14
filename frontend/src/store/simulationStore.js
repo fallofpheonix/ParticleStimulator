@@ -7,6 +7,16 @@ const buildSessionId = () =>
     ? crypto.randomUUID()
     : `session-${Date.now()}`;
 
+const sortReplayEvents = (events) =>
+  [...events].sort((left, right) => {
+    const leftTime = left.time_s ?? left.timestamp ?? Number.MAX_SAFE_INTEGER;
+    const rightTime = right.time_s ?? right.timestamp ?? Number.MAX_SAFE_INTEGER;
+    if (leftTime !== rightTime) {
+      return leftTime - rightTime;
+    }
+    return (left.event_id ?? 0) - (right.event_id ?? 0);
+  });
+
 const normalizeSimulationEvents = (payload) => {
   if (!payload) {
     return [];
@@ -14,6 +24,7 @@ const normalizeSimulationEvents = (payload) => {
 
   const particleMap = new Map((payload.final_particles ?? []).map((particle) => [particle.particle_id, particle]));
   const receivedAt = Date.now();
+
   return (payload.collisions ?? []).map((event) => ({
     event_id: event.event_id,
     timestamp: receivedAt + Math.round((event.time_s ?? 0) * 1000),
@@ -38,23 +49,6 @@ const normalizeSimulationEvents = (payload) => {
   }));
 };
 
-const normalizeTimelineState = (payload, currentTimeline) => ({
-  entries: payload?.timeline ?? [],
-  replayIndex: 0,
-  isPlaying: false,
-  playbackSpeedMs: currentTimeline.playbackSpeedMs
-});
-
-const getReplayEventsSnapshot = (state) =>
-  [...state.eventStream.events].sort((left, right) => {
-    const leftTime = left.time_s ?? Number.MAX_SAFE_INTEGER;
-    const rightTime = right.time_s ?? Number.MAX_SAFE_INTEGER;
-    if (leftTime !== rightTime) {
-      return leftTime - rightTime;
-    }
-    return (left.event_id ?? 0) - (right.event_id ?? 0);
-  });
-
 const computeParticleTracks = (payload) =>
   (payload?.final_particles ?? []).map((particle) => ({
     particle_id: particle.particle_id,
@@ -67,6 +61,97 @@ const computeDetectorHits = (payload) => [
   ...(payload?.tracker_hits ?? []).map((hit) => ({ layer: "tracker", ...hit })),
   ...(payload?.calorimeter_hits ?? []).map((hit) => ({ layer: "calorimeter", ...hit }))
 ];
+
+const buildTimelineState = (payload, currentTimeline) => ({
+  entries: payload?.timeline ?? [],
+  replayIndex: 0,
+  isPlaying: false,
+  playbackSpeedMs: currentTimeline.playbackSpeedMs
+});
+
+const summarizeExperimentDatasets = (events, tracks, hits) => [
+  {
+    id: "event-stream",
+    name: "Event Stream",
+    description: "Normalized collision records from the backend event bus.",
+    records: events.length,
+    metric: "events"
+  },
+  {
+    id: "particle-tracks",
+    name: "Particle Tracks",
+    description: "Renderable particle trajectories derived from simulation output.",
+    records: tracks.length,
+    metric: "tracks"
+  },
+  {
+    id: "detector-hits",
+    name: "Detector Hits",
+    description: "Tracker and calorimeter readout samples used by analysis panels.",
+    records: hits.length,
+    metric: "hits"
+  }
+];
+
+const buildRunSummary = (parameters, payload, events, tracks, hits) => ({
+  id: `run-${Date.now()}`,
+  startedAt: new Date().toISOString(),
+  beamEnergyTeV: (parameters.beam_energy_gev ?? 0) / 1000,
+  collisions: events.length,
+  particles: tracks.length,
+  detectorHits: hits.length,
+  massPeak: Math.max(0, ...events.map((event) => event.collision?.mass ?? 0)),
+  transport: payload ? "backend" : "stream",
+  status: "completed"
+});
+
+const buildCollaborationState = (sessionId) => ({
+  users: [
+    { id: sessionId, name: "You", role: "host", color: "#7dd3fc", online: true },
+    { id: "u-2", name: "A. Chen", role: "analysis", color: "#fb7185", online: true },
+    { id: "u-3", name: "M. Iqbal", role: "detector", color: "#34d399", online: true }
+  ],
+  messages: [
+    { id: "m-1", author: "system", body: "Shared session ready.", kind: "system" },
+    { id: "m-2", author: "A. Chen", body: "Monitoring jet multiplicity in the latest run.", kind: "text" }
+  ],
+  locks: {}
+});
+
+const settingsStorageKey = "particle-stimulator:settings";
+
+const buildDefaultSettings = () => ({
+  theme: "dark",
+  apiBaseUrl: "http://127.0.0.1:8000",
+  websocketUrl: "ws://127.0.0.1:8001/events",
+  defaultPhysicsParameters: { ...defaultPhysicsParameters }
+});
+
+const readStoredSettings = () => {
+  if (typeof window === "undefined") {
+    return buildDefaultSettings();
+  }
+  try {
+    const raw = window.localStorage.getItem(settingsStorageKey);
+    if (!raw) {
+      return buildDefaultSettings();
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      ...buildDefaultSettings(),
+      ...parsed,
+      defaultPhysicsParameters: {
+        ...defaultPhysicsParameters,
+        ...(parsed.defaultPhysicsParameters ?? {})
+      }
+    };
+  } catch {
+    return buildDefaultSettings();
+  }
+};
+
+const sessionId = buildSessionId();
+const initialSettings = readStoredSettings();
 
 export const useSimulationStore = create((set, get) => ({
   simulationParameters: { ...defaultPhysicsParameters },
@@ -93,6 +178,7 @@ export const useSimulationStore = create((set, get) => ({
   },
   eventStream: {
     events: [],
+    replayEvents: [],
     selectedEventId: null,
     wsStatus: "disconnected",
     filters: {
@@ -115,11 +201,28 @@ export const useSimulationStore = create((set, get) => ({
     playbackSpeedMs: 900
   },
   userSession: {
-    sessionId: buildSessionId(),
+    sessionId,
     connectedAt: null,
     preferences: {
-      theme: "control-surface"
+      theme: initialSettings.theme
     }
+  },
+  settings: initialSettings,
+  experiments: {
+    selectedDatasetId: "event-stream",
+    selectedRunId: null,
+    runHistory: [],
+    datasets: summarizeExperimentDatasets([], [], [])
+  },
+  collaboration: buildCollaborationState(sessionId),
+  ml: {
+    status: "idle",
+    progress: 0,
+    dataset: "auto",
+    metrics: null,
+    artifactPath: null,
+    lastPrediction: null,
+    error: null
   },
 
   setPhysicsParameter: (name, value) =>
@@ -184,42 +287,61 @@ export const useSimulationStore = create((set, get) => ({
   applySimulationPayload: (payload) =>
     set((state) => {
       const nextEvents = normalizeSimulationEvents(payload);
+      const replayEvents = sortReplayEvents(nextEvents);
       const nextTracks = computeParticleTracks(payload);
       const nextHits = computeDetectorHits(payload);
+      const datasets = summarizeExperimentDatasets(nextEvents, nextTracks, nextHits);
+      const runSummary = buildRunSummary(state.simulationParameters, payload, nextEvents, nextTracks, nextHits);
+
       return {
         eventData: nextEvents,
         particleTracks: nextTracks,
         detectorHits: nextHits,
         timelineFrame: 0,
+        simulationRunning: false,
         simulationState: {
           ...state.simulationState,
           status: "ready",
           payload,
           error: null,
           transport: state.eventStream.wsStatus === "connected" ? "websocket" : "http",
-          lastRunAt: new Date().toISOString()
+          lastRunAt: runSummary.startedAt
         },
         eventStream: {
           ...state.eventStream,
           events: nextEvents,
-          selectedEventId: nextEvents[0]?.event_id ?? null
+          replayEvents,
+          selectedEventId: replayEvents[0]?.event_id ?? null
         },
-        timelineState: normalizeTimelineState(payload, state.timelineState)
+        timelineState: buildTimelineState(payload, state.timelineState),
+        experiments: {
+          ...state.experiments,
+          datasets,
+          selectedRunId: runSummary.id,
+          runHistory: [runSummary, ...state.experiments.runHistory].slice(0, 24)
+        }
       };
     }),
 
   appendStreamEvent: (event) =>
     set((state) => {
+      if (state.eventStream.events.some((current) => current.event_id === event.event_id)) {
+        return {};
+      }
       const enrichedEvent = {
         timestamp: Date.now(),
         ...event
       };
       const events = [enrichedEvent, ...state.eventStream.events].slice(0, 250);
+      const replayEvents = sortReplayEvents(events);
+      const datasets = summarizeExperimentDatasets(events, state.particleTracks, state.detectorHits);
+
       return {
         eventData: events,
         eventStream: {
           ...state.eventStream,
           events,
+          replayEvents,
           selectedEventId: state.eventStream.selectedEventId ?? enrichedEvent.event_id
         },
         timelineState: {
@@ -228,6 +350,10 @@ export const useSimulationStore = create((set, get) => ({
             { type: "stream", time_s: enrichedEvent.time_s ?? 0, payload: enrichedEvent },
             ...state.timelineState.entries
           ].slice(0, 120)
+        },
+        experiments: {
+          ...state.experiments,
+          datasets
         }
       };
     }),
@@ -250,7 +376,7 @@ export const useSimulationStore = create((set, get) => ({
 
   selectEvent: (eventId) =>
     set((state) => {
-      const replayEvents = getReplayEventsSnapshot(state);
+      const replayEvents = state.eventStream.replayEvents;
       const replayIndex = replayEvents.findIndex((event) => event.event_id === eventId);
       return {
         timelineFrame: replayIndex >= 0 ? replayIndex : state.timelineFrame,
@@ -258,12 +384,13 @@ export const useSimulationStore = create((set, get) => ({
           ...state.eventStream,
           selectedEventId: eventId
         },
-        timelineState: replayIndex >= 0
-          ? {
-              ...state.timelineState,
-              replayIndex
-            }
-          : state.timelineState
+        timelineState:
+          replayIndex >= 0
+            ? {
+                ...state.timelineState,
+                replayIndex
+              }
+            : state.timelineState
       };
     }),
 
@@ -288,9 +415,12 @@ export const useSimulationStore = create((set, get) => ({
 
   setTimelinePlayback: (isPlaying) =>
     set((state) => {
-      const replayEvents = getReplayEventsSnapshot(state);
+      const replayEvents = state.eventStream.replayEvents;
       const selectedEventId =
-        state.eventStream.selectedEventId ?? replayEvents[state.timelineState.replayIndex]?.event_id ?? replayEvents[0]?.event_id ?? null;
+        state.eventStream.selectedEventId ??
+        replayEvents[state.timelineState.replayIndex]?.event_id ??
+        replayEvents[0]?.event_id ??
+        null;
       return {
         timelineFrame: state.timelineState.replayIndex,
         eventStream: {
@@ -306,7 +436,7 @@ export const useSimulationStore = create((set, get) => ({
 
   advanceTimeline: () =>
     set((state) => {
-      const replayEvents = getReplayEventsSnapshot(state);
+      const replayEvents = state.eventStream.replayEvents;
       if (!replayEvents.length) {
         return state;
       }
@@ -327,7 +457,7 @@ export const useSimulationStore = create((set, get) => ({
 
   resetTimeline: () =>
     set((state) => {
-      const replayEvents = getReplayEventsSnapshot(state);
+      const replayEvents = state.eventStream.replayEvents;
       return {
         timelineFrame: 0,
         eventStream: {
@@ -358,10 +488,95 @@ export const useSimulationStore = create((set, get) => ({
       }
     })),
 
+  updateSettings: (patch) =>
+    set((state) => {
+      const settings = {
+        ...state.settings,
+        ...patch,
+        defaultPhysicsParameters: {
+          ...state.settings.defaultPhysicsParameters,
+          ...(patch.defaultPhysicsParameters ?? {})
+        }
+      };
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+      }
+      return {
+        settings,
+        userSession: {
+          ...state.userSession,
+          preferences: {
+            ...state.userSession.preferences,
+            theme: settings.theme
+          }
+        }
+      };
+    }),
+
   setDebugMetrics: (patch) =>
     set((state) => ({
       debugMetrics: {
         ...state.debugMetrics,
+        ...patch
+      }
+    })),
+
+  selectExperimentDataset: (datasetId) =>
+    set((state) => ({
+      experiments: {
+        ...state.experiments,
+        selectedDatasetId: datasetId
+      }
+    })),
+
+  selectExperimentRun: (runId) =>
+    set((state) => ({
+      experiments: {
+        ...state.experiments,
+        selectedRunId: runId
+      }
+    })),
+
+  sendCollaborationMessage: (body, kind = "text", author = "You") =>
+    set((state) => ({
+      collaboration: {
+        ...state.collaboration,
+        messages: [
+          ...state.collaboration.messages,
+          {
+            id: `m-${Date.now()}`,
+            author,
+            body,
+            kind
+          }
+        ].slice(-40)
+      }
+    })),
+
+  toggleCollaborationLock: (key, ownerId = null) =>
+    set((state) => {
+      const existing = state.collaboration.locks[key];
+      const nextLocks = { ...state.collaboration.locks };
+      if (existing) {
+        delete nextLocks[key];
+      } else {
+        const resolvedOwnerId = ownerId ?? state.userSession.sessionId;
+        const owner =
+          state.collaboration.users.find((user) => user.id === resolvedOwnerId) ?? state.collaboration.users[0];
+        nextLocks[key] = owner;
+      }
+      return {
+        collaboration: {
+          ...state.collaboration,
+          locks: nextLocks
+        }
+      };
+    }),
+
+  setMlStatus: (patch) =>
+    set((state) => ({
+      ml: {
+        ...state.ml,
         ...patch
       }
     })),
@@ -372,21 +587,5 @@ export const useSimulationStore = create((set, get) => ({
         ...state.simulationState,
         error: null
       }
-    })),
-
-  getFilteredEvents: () => {
-    const state = get();
-    const query = state.eventStream.filters.query.toLowerCase();
-    const type = state.eventStream.filters.type;
-    return state.eventStream.events.filter((event) => {
-      const matchesQuery =
-        !query ||
-        String(event.event_id).includes(query) ||
-        (event.particles ?? []).some((particle) => particle.type.toLowerCase().includes(query));
-      const matchesType = type === "all" || (event.particles ?? []).some((particle) => particle.type === type);
-      return matchesQuery && matchesType;
-    });
-  },
-
-  getReplayEvents: () => getReplayEventsSnapshot(get())
+    }))
 }));

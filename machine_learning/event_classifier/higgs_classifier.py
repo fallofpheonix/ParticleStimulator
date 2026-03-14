@@ -4,9 +4,9 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
 
-from analysis.higgs import main
+from src.analysis.higgs import main
 
 
 if __name__ == "__main__":

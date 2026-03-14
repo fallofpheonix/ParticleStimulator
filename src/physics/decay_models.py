@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from core.constants import SPEED_OF_LIGHT_M_S
-from core.particle import Particle
-from core.vector import Vector3
+from src.core.constants import SPEED_OF_LIGHT_M_S
+from src.core.particle import Particle
+from src.core.vector import Vector3
 
 
 def decay_products(particle: Particle) -> list[Particle]:
