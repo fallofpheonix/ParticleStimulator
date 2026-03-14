@@ -20,3 +20,8 @@ data/processed_events/*.pkl
 *.log
 *.tmp
 *.swp
+
+# Build artifacts
+*.egg-info/
+dist/
+build/

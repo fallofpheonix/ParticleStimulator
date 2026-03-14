@@ -1,3 +1,0 @@
-analysis
-simulation_core
-web
