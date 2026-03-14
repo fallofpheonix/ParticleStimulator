@@ -43,7 +43,6 @@ class SimulationWebSocketServer:
 
     def attach_to_app(self, app, path: str) -> None:
         from fastapi import WebSocket
-        from fastapi.routing import APIRouter
 
         server = self
 
