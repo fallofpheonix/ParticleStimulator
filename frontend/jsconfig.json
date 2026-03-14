@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["src/app/*"],
+      "@layout/*": ["src/layout/*"],
+      "@renderer/*": ["src/renderer/*"],
+      "@ui/*": ["src/ui/*"],
+      "@analytics/*": ["src/analytics/*"],
+      "@events/*": ["src/events/*"],
+      "@detector/*": ["src/detector/*"],
+      "@timeline/*": ["src/timeline/*"],
+      "@config/*": ["src/config/*"],
+      "@debug/*": ["src/debug/*"],
+      "@assets/*": ["src/assets/*"],
+      "@collaboration/*": ["src/collaboration/*"],
+      "@experiments/*": ["src/experiments/*"],
+      "@store/*": ["src/store/*"],
+      "@services/*": ["src/services/*"]
+    }
+  },
+  "exclude": ["dist", "node_modules"]
+}
