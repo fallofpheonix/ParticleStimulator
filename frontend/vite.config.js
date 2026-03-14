@@ -7,23 +7,24 @@ const resolvePath = (value) => path.resolve(__dirname, value);
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      "@app": resolvePath("./src/app"),
-      "@layout": resolvePath("./src/layout"),
-      "@renderer": resolvePath("./src/renderer"),
-      "@ui": resolvePath("./src/ui"),
-      "@analytics": resolvePath("./src/analytics"),
-      "@events": resolvePath("./src/events"),
-      "@detector": resolvePath("./src/detector"),
-      "@timeline": resolvePath("./src/timeline"),
-      "@config": resolvePath("./src/config"),
-      "@debug": resolvePath("./src/debug"),
-      "@assets": resolvePath("./src/assets"),
-      "@collaboration": resolvePath("./src/collaboration"),
-      "@experiments": resolvePath("./src/experiments"),
-      "@store": resolvePath("./src/store"),
-      "@services": resolvePath("./src/services")
-    }
+    alias: [
+      { find: /^zustand$/, replacement: resolvePath("./src/store/zustandCompat.js") },
+      { find: "@app", replacement: resolvePath("./src/app") },
+      { find: "@layout", replacement: resolvePath("./src/layout") },
+      { find: "@renderer", replacement: resolvePath("./src/renderer") },
+      { find: "@ui", replacement: resolvePath("./src/ui") },
+      { find: "@analytics", replacement: resolvePath("./src/analytics") },
+      { find: "@events", replacement: resolvePath("./src/events") },
+      { find: "@detector", replacement: resolvePath("./src/detector") },
+      { find: "@timeline", replacement: resolvePath("./src/timeline") },
+      { find: "@config", replacement: resolvePath("./src/config") },
+      { find: "@debug", replacement: resolvePath("./src/debug") },
+      { find: "@assets", replacement: resolvePath("./src/assets") },
+      { find: "@collaboration", replacement: resolvePath("./src/collaboration") },
+      { find: "@experiments", replacement: resolvePath("./src/experiments") },
+      { find: "@store", replacement: resolvePath("./src/store") },
+      { find: "@services", replacement: resolvePath("./src/services") }
+    ]
   },
   server: {
     host: "127.0.0.1",

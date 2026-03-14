@@ -42,3 +42,4 @@ npm run dev
 - `simulation_dashboard/`: plain-JS prototype retained for reference
 - `event_viewer/`: reserved placeholder
 - `ui_controls/`: reserved placeholder
+- `../frontendofpraticlestimulator/`: legacy AI-generated component dump used as adapter input for replay and event-inspection components; not a runtime application

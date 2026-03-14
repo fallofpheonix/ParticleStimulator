@@ -3,7 +3,9 @@ import { memo, useMemo } from "react";
 import { selectSelectedEvent } from "@app/selectors";
 import { useSimulationStore } from "@store/simulationStore";
 
+import CollisionSummary from "./CollisionSummary.jsx";
 import EventCard from "./EventCard.jsx";
+import ParticleList from "./ParticleList.jsx";
 
 const EventStream = memo(function EventStream() {
   const events = useSimulationStore((state) => state.getFilteredEvents());
@@ -45,19 +47,23 @@ const EventStream = memo(function EventStream() {
       <section className="subpanel">
         <h3>Selected Event</h3>
         {selectedEvent ? (
-          <div className="selected-event-summary">
-            <div className="kv-row">
-              <span>event</span>
-              <strong>#{selectedEvent.event_id}</strong>
+          <div className="selected-event-stack">
+            <div className="selected-event-summary">
+              <div className="kv-row">
+                <span>event</span>
+                <strong>#{selectedEvent.event_id}</strong>
+              </div>
+              <div className="kv-row">
+                <span>energy</span>
+                <strong>{((selectedEvent.collision_energy ?? 0) / 1000).toFixed(2)} TeV</strong>
+              </div>
+              <div className="kv-row">
+                <span>mass</span>
+                <strong>{(selectedEvent.collision?.mass ?? 0).toFixed(3)} GeV</strong>
+              </div>
             </div>
-            <div className="kv-row">
-              <span>energy</span>
-              <strong>{((selectedEvent.collision_energy ?? 0) / 1000).toFixed(2)} TeV</strong>
-            </div>
-            <div className="kv-row">
-              <span>mass</span>
-              <strong>{(selectedEvent.collision?.mass ?? 0).toFixed(3)} GeV</strong>
-            </div>
+            <CollisionSummary event={selectedEvent} />
+            <ParticleList particles={selectedEvent.particles ?? []} />
           </div>
         ) : (
           <div className="empty-state">Select a collision to inspect it.</div>

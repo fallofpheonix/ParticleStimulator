@@ -6,7 +6,7 @@ import { eventBus } from "@services/eventBus";
 import { useSimulationStore } from "@store/simulationStore";
 
 const ControlPanel = memo(function ControlPanel() {
-  const parameters = useSimulationStore((state) => state.physicsParameters);
+  const parameters = useSimulationStore((state) => state.simulationParameters);
   const status = useSimulationStore((state) => state.simulationState.status);
   const error = useSimulationStore((state) => state.simulationState.error);
   const transport = useSimulationStore((state) => state.simulationState.transport);

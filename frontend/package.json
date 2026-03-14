@@ -9,12 +9,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/drei": "^9.120.4",
     "@react-three/fiber": "^8.17.10",
     "d3": "^7.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.56.4",
+    "stats.js": "^0.17.0",
     "three": "^0.170.0",
-    "zustand": "^5.0.1"
+    "zustand": "^5.0.11"
+  },
+  "overrides": {
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",

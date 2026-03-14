@@ -1,10 +1,15 @@
 import { memo, useLayoutEffect, useMemo, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
+import { Grid, OrbitControls, Stars } from "@react-three/drei";
 import * as THREE from "three";
 
 import { selectSelectedEvent } from "@app/selectors";
-import { DetectorScene } from "@detector";
 import { useSimulationStore } from "@store/simulationStore";
+
+import CollisionPoint from "./CollisionPoint.jsx";
+import DetectorGeometry from "./DetectorGeometry.jsx";
+import JetCone from "./JetCone.jsx";
+import ParticleTrack from "./ParticleTrack.jsx";
 
 const SCALE = 18;
 
@@ -52,16 +57,49 @@ function ParticleInstances({ particles, highlightIds }) {
 }
 
 const SceneContents = memo(function SceneContents({ particles, highlightIds }) {
+  const highlightedParticles = particles.filter((particle) => highlightIds.has(particle.particle_id));
+
   return (
     <>
-      <ambientLight intensity={0.75} />
-      <pointLight position={[6, 8, 12]} intensity={40} color="#9acaff" />
-      <pointLight position={[-8, -6, 4]} intensity={22} color="#ffb787" />
+      <ambientLight intensity={0.45} />
+      <pointLight position={[6, 8, 12]} intensity={28} color="#9acaff" />
+      <pointLight position={[-8, -6, 4]} intensity={16} color="#ffb787" />
+      <Stars radius={48} depth={36} count={1800} factor={2.8} saturation={0} fade speed={0.4} />
       <group rotation={[-0.38, 0.28, 0]}>
-        <DetectorScene />
+        <DetectorGeometry />
+        <CollisionPoint />
         <ParticleInstances particles={particles} highlightIds={highlightIds} />
+        {highlightedParticles.map((particle) => (
+          <ParticleTrack
+            key={`track-${particle.particle_id}`}
+            particle={{
+              type: particle.species,
+              momentum: particle.velocity,
+              position: particle.position
+            }}
+          />
+        ))}
+        {highlightedParticles.map((particle) => (
+          <JetCone
+            key={`jet-${particle.particle_id}`}
+            direction={[particle.velocity.x, particle.velocity.y, particle.velocity.z]}
+            energy={particle.kinetic_energy_gev ?? 1}
+            color="#ff8a5b"
+          />
+        ))}
       </group>
-      <gridHelper args={[16, 16, "#1b3956", "#102131"]} position={[0, -3.5, 0]} />
+      <Grid
+        args={[20, 20]}
+        cellSize={1}
+        cellThickness={0.3}
+        cellColor="#1b3956"
+        sectionSize={5}
+        sectionThickness={0.8}
+        sectionColor="#2b6aa1"
+        fadeDistance={28}
+        fadeStrength={1.2}
+        position={[0, -3.5, 0]}
+      />
     </>
   );
 });
@@ -69,6 +107,7 @@ const SceneContents = memo(function SceneContents({ particles, highlightIds }) {
 const ParticleScene = memo(function ParticleScene() {
   const payload = useSimulationStore((state) => state.simulationState.payload);
   const selectedEvent = useSimulationStore(selectSelectedEvent);
+  const renderPaused = useSimulationStore((state) => state.uiLayout.renderPaused);
   const particles = payload?.final_particles ?? [];
   const highlightIds = useMemo(() => new Set(selectedEvent?.product_ids ?? []), [selectedEvent]);
 
@@ -79,13 +118,15 @@ const ParticleScene = memo(function ParticleScene() {
         <p>Instanced 3D particle rendering fed from simulation payloads</p>
       </div>
       <div className="scene-shell">
-        <Canvas camera={{ position: [0, 1.6, 8.2], fov: 42 }}>
+        <Canvas camera={{ position: [0, 1.6, 8.2], fov: 42 }} frameloop={renderPaused ? "never" : "always"}>
           <SceneContents particles={particles} highlightIds={highlightIds} />
+          <OrbitControls enablePan enableZoom enableRotate autoRotate autoRotateSpeed={0.2} />
         </Canvas>
         <div className="legend">
           <span><i className="swatch beam-a" /> Active Particles</span>
-          <span><i className="swatch beam-b" /> Secondary Geometry</span>
+          <span><i className="swatch beam-b" /> Detector Layers</span>
           <span><i className="swatch collision" /> Selected Event</span>
+          <span>{renderPaused ? "Renderer paused" : "Renderer live"}</span>
         </div>
       </div>
     </>

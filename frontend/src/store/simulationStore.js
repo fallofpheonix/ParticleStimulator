@@ -13,8 +13,10 @@ const normalizeSimulationEvents = (payload) => {
   }
 
   const particleMap = new Map((payload.final_particles ?? []).map((particle) => [particle.particle_id, particle]));
+  const receivedAt = Date.now();
   return (payload.collisions ?? []).map((event) => ({
     event_id: event.event_id,
+    timestamp: receivedAt + Math.round((event.time_s ?? 0) * 1000),
     collision_energy: (payload.config?.beam_energy_gev ?? 0) * 2,
     product_ids: event.product_ids ?? [],
     product_species: event.product_species ?? [],
@@ -43,7 +45,43 @@ const normalizeTimelineState = (payload, currentTimeline) => ({
   playbackSpeedMs: currentTimeline.playbackSpeedMs
 });
 
+const getReplayEventsSnapshot = (state) =>
+  [...state.eventStream.events].sort((left, right) => {
+    const leftTime = left.time_s ?? Number.MAX_SAFE_INTEGER;
+    const rightTime = right.time_s ?? Number.MAX_SAFE_INTEGER;
+    if (leftTime !== rightTime) {
+      return leftTime - rightTime;
+    }
+    return (left.event_id ?? 0) - (right.event_id ?? 0);
+  });
+
+const computeParticleTracks = (payload) =>
+  (payload?.final_particles ?? []).map((particle) => ({
+    particle_id: particle.particle_id,
+    type: particle.species,
+    momentum: particle.velocity,
+    position: particle.position
+  }));
+
+const computeDetectorHits = (payload) => [
+  ...(payload?.tracker_hits ?? []).map((hit) => ({ layer: "tracker", ...hit })),
+  ...(payload?.calorimeter_hits ?? []).map((hit) => ({ layer: "calorimeter", ...hit }))
+];
+
 export const useSimulationStore = create((set, get) => ({
+  simulationParameters: { ...defaultPhysicsParameters },
+  simulationRunning: false,
+  eventData: [],
+  particleTracks: [],
+  detectorHits: [],
+  timelineFrame: 0,
+  debugMetrics: {
+    fps: 0,
+    heapMb: 0,
+    gpuMb: 0,
+    latencyMs: 0,
+    wsStatus: "disconnected"
+  },
   simulationState: {
     status: "idle",
     health: "checking",
@@ -67,7 +105,8 @@ export const useSimulationStore = create((set, get) => ({
     leftCollapsed: false,
     rightCollapsed: false,
     bottomCollapsed: false,
-    debugVisible: true
+    debugVisible: true,
+    renderPaused: false
   },
   timelineState: {
     entries: [],
@@ -85,18 +124,39 @@ export const useSimulationStore = create((set, get) => ({
 
   setPhysicsParameter: (name, value) =>
     set((state) => ({
+      simulationParameters: {
+        ...state.simulationParameters,
+        [name]: value
+      },
       physicsParameters: {
         ...state.physicsParameters,
         [name]: value
       }
     })),
 
+  setPhysicsParameters: (values) =>
+    set((state) => ({
+      simulationParameters: {
+        ...state.simulationParameters,
+        ...values
+      },
+      physicsParameters: {
+        ...state.physicsParameters,
+        ...values
+      }
+    })),
+
   hydrateDefaults: (defaults) =>
     set((state) => ({
+      simulationParameters: {
+        ...state.simulationParameters,
+        ...defaults
+      },
       physicsParameters: {
         ...state.physicsParameters,
         ...defaults
       },
+      simulationRunning: false,
       simulationState: {
         ...state.simulationState,
         defaultsLoaded: true
@@ -105,6 +165,7 @@ export const useSimulationStore = create((set, get) => ({
 
   setSimulationStatus: (status, error = null) =>
     set((state) => ({
+      simulationRunning: status === "running",
       simulationState: {
         ...state.simulationState,
         status,
@@ -123,7 +184,13 @@ export const useSimulationStore = create((set, get) => ({
   applySimulationPayload: (payload) =>
     set((state) => {
       const nextEvents = normalizeSimulationEvents(payload);
+      const nextTracks = computeParticleTracks(payload);
+      const nextHits = computeDetectorHits(payload);
       return {
+        eventData: nextEvents,
+        particleTracks: nextTracks,
+        detectorHits: nextHits,
+        timelineFrame: 0,
         simulationState: {
           ...state.simulationState,
           status: "ready",
@@ -143,17 +210,22 @@ export const useSimulationStore = create((set, get) => ({
 
   appendStreamEvent: (event) =>
     set((state) => {
-      const events = [event, ...state.eventStream.events].slice(0, 250);
+      const enrichedEvent = {
+        timestamp: Date.now(),
+        ...event
+      };
+      const events = [enrichedEvent, ...state.eventStream.events].slice(0, 250);
       return {
+        eventData: events,
         eventStream: {
           ...state.eventStream,
           events,
-          selectedEventId: state.eventStream.selectedEventId ?? event.event_id
+          selectedEventId: state.eventStream.selectedEventId ?? enrichedEvent.event_id
         },
         timelineState: {
           ...state.timelineState,
           entries: [
-            { type: "stream", time_s: event.time_s ?? 0, payload: event },
+            { type: "stream", time_s: enrichedEvent.time_s ?? 0, payload: enrichedEvent },
             ...state.timelineState.entries
           ].slice(0, 120)
         }
@@ -162,6 +234,10 @@ export const useSimulationStore = create((set, get) => ({
 
   setWsStatus: (wsStatus) =>
     set((state) => ({
+      debugMetrics: {
+        ...state.debugMetrics,
+        wsStatus
+      },
       eventStream: {
         ...state.eventStream,
         wsStatus
@@ -173,12 +249,23 @@ export const useSimulationStore = create((set, get) => ({
     })),
 
   selectEvent: (eventId) =>
-    set((state) => ({
-      eventStream: {
-        ...state.eventStream,
-        selectedEventId: eventId
-      }
-    })),
+    set((state) => {
+      const replayEvents = getReplayEventsSnapshot(state);
+      const replayIndex = replayEvents.findIndex((event) => event.event_id === eventId);
+      return {
+        timelineFrame: replayIndex >= 0 ? replayIndex : state.timelineFrame,
+        eventStream: {
+          ...state.eventStream,
+          selectedEventId: eventId
+        },
+        timelineState: replayIndex >= 0
+          ? {
+              ...state.timelineState,
+              replayIndex
+            }
+          : state.timelineState
+      };
+    }),
 
   setEventFilter: (key, value) =>
     set((state) => ({
@@ -200,31 +287,60 @@ export const useSimulationStore = create((set, get) => ({
     })),
 
   setTimelinePlayback: (isPlaying) =>
-    set((state) => ({
-      timelineState: {
-        ...state.timelineState,
-        isPlaying
-      }
-    })),
+    set((state) => {
+      const replayEvents = getReplayEventsSnapshot(state);
+      const selectedEventId =
+        state.eventStream.selectedEventId ?? replayEvents[state.timelineState.replayIndex]?.event_id ?? replayEvents[0]?.event_id ?? null;
+      return {
+        timelineFrame: state.timelineState.replayIndex,
+        eventStream: {
+          ...state.eventStream,
+          selectedEventId
+        },
+        timelineState: {
+          ...state.timelineState,
+          isPlaying: isPlaying && replayEvents.length > 0
+        }
+      };
+    }),
 
   advanceTimeline: () =>
-    set((state) => ({
-      timelineState: {
-        ...state.timelineState,
-        replayIndex: state.timelineState.entries.length
-          ? Math.min(state.timelineState.entries.length - 1, state.timelineState.replayIndex + 1)
-          : 0
+    set((state) => {
+      const replayEvents = getReplayEventsSnapshot(state);
+      if (!replayEvents.length) {
+        return state;
       }
-    })),
+      const nextIndex = Math.min(replayEvents.length - 1, state.timelineState.replayIndex + 1);
+      return {
+        timelineFrame: nextIndex,
+        eventStream: {
+          ...state.eventStream,
+          selectedEventId: replayEvents[nextIndex]?.event_id ?? state.eventStream.selectedEventId
+        },
+        timelineState: {
+          ...state.timelineState,
+          replayIndex: nextIndex,
+          isPlaying: nextIndex < replayEvents.length - 1 ? state.timelineState.isPlaying : false
+        }
+      };
+    }),
 
   resetTimeline: () =>
-    set((state) => ({
-      timelineState: {
-        ...state.timelineState,
-        replayIndex: 0,
-        isPlaying: false
-      }
-    })),
+    set((state) => {
+      const replayEvents = getReplayEventsSnapshot(state);
+      return {
+        timelineFrame: 0,
+        eventStream: {
+          ...state.eventStream,
+          selectedEventId: replayEvents[0]?.event_id ?? state.eventStream.selectedEventId
+        },
+        timelineState: {
+          ...state.timelineState,
+          replayIndex: 0,
+          isPlaying: false
+        }
+      };
+    }),
 
   setTimelineSpeed: (playbackSpeedMs) =>
     set((state) => ({
@@ -238,6 +354,14 @@ export const useSimulationStore = create((set, get) => ({
     set((state) => ({
       userSession: {
         ...state.userSession,
+        ...patch
+      }
+    })),
+
+  setDebugMetrics: (patch) =>
+    set((state) => ({
+      debugMetrics: {
+        ...state.debugMetrics,
         ...patch
       }
     })),
@@ -262,5 +386,7 @@ export const useSimulationStore = create((set, get) => ({
       const matchesType = type === "all" || (event.particles ?? []).some((particle) => particle.type === type);
       return matchesQuery && matchesType;
     });
-  }
+  },
+
+  getReplayEvents: () => getReplayEventsSnapshot(get())
 }));

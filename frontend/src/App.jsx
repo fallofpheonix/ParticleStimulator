@@ -18,7 +18,7 @@ export default function App() {
   const defaultsLoaded = useSimulationStore((state) => state.simulationState.defaultsLoaded);
   const status = useSimulationStore((state) => state.simulationState.status);
   const payload = useSimulationStore((state) => state.simulationState.payload);
-  const parameters = useSimulationStore((state) => state.physicsParameters);
+  const parameters = useSimulationStore((state) => state.simulationParameters);
   const hydrateDefaults = useSimulationStore((state) => state.hydrateDefaults);
 
   useEffect(() => {

@@ -1,92 +1,79 @@
 import { memo, useMemo } from "react";
-import { scaleLinear } from "d3-scale";
 
 import { useSimulationStore } from "@store/simulationStore";
 
-function Histogram({ bins }) {
-  const maxCount = useMemo(() => Math.max(1, ...bins.map((bin) => bin.count ?? 0)), [bins]);
-  const yScale = useMemo(() => scaleLinear().domain([0, maxCount]).range([0, 160]), [maxCount]);
+import DetectorHeatmap from "./DetectorHeatmap.jsx";
+import EnergyGraph from "./EnergyGraph.jsx";
+import JetCountGraph from "./JetCountGraph.jsx";
+import MomentumHistogram from "./MomentumHistogram.jsx";
+import ParticleDistribution from "./ParticleDistribution.jsx";
 
-  if (!bins.length) {
-    return <div className="empty-state">Run a simulation to populate invariant-mass bins.</div>;
-  }
-
-  return (
-    <svg className="histogram-svg" viewBox="0 0 520 220" role="img" aria-label="Invariant mass histogram">
-      {bins.map((bin, index) => {
-        const barWidth = 520 / bins.length;
-        const height = yScale(bin.count ?? 0);
-        const x = index * barWidth + 4;
-        const y = 180 - height;
-        return (
-          <g key={`${bin.label}-${index}`}>
-            <rect x={x} y={y} width={Math.max(10, barWidth - 8)} height={height} rx="8" />
-            <text x={x + 4} y="205">
-              {bin.label}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function CalorimeterBars({ totals }) {
-  const maxEnergy = useMemo(() => Math.max(1, ...totals.map((row) => row.energy_gev ?? 0)), [totals]);
-
-  if (!totals.length) {
-    return <div className="empty-state">No calorimeter occupancy yet.</div>;
-  }
-
-  return (
-    <div className="bar-list">
-      {totals.map((row) => (
-        <div className="bar-row" key={row.phi_bin}>
-          <span>phi {row.phi_bin}</span>
-          <div className="bar-track">
-            <div className="bar-fill" style={{ width: `${((row.energy_gev ?? 0) / maxEnergy) * 100}%` }} />
-          </div>
-          <strong>{(row.energy_gev ?? 0).toFixed(4)}</strong>
-        </div>
-      ))}
-    </div>
-  );
-}
+const sortedEvents = (events) =>
+  [...events].sort((left, right) => (left.timestamp ?? left.time_s ?? 0) - (right.timestamp ?? right.time_s ?? 0));
 
 const Dashboard = memo(function Dashboard() {
+  const streamEvents = useSimulationStore((state) => state.eventStream.events);
   const payload = useSimulationStore((state) => state.simulationState.payload);
-  const summary = payload?.summary;
+
+  const events = useMemo(() => {
+    if (streamEvents.length) {
+      return sortedEvents(streamEvents);
+    }
+    return sortedEvents(
+      (payload?.collisions ?? []).map((collision) => ({
+        event_id: collision.event_id,
+        timestamp: (collision.time_s ?? 0) * 1000,
+        time_s: collision.time_s,
+        collision_energy: (payload?.config?.beam_energy_gev ?? 0) * 2,
+        jets: (collision.product_species ?? []).filter((species) => species.startsWith("pi")).length,
+        particles: (collision.product_species ?? []).map((species) => ({ type: species, px: 0, py: 0, pz: 0 })),
+        collision: {
+          jets: (collision.product_species ?? []).filter((species) => species.startsWith("pi")).length,
+          mass: collision.invariant_mass_gev ?? 0
+        }
+      }))
+    );
+  }, [payload, streamEvents]);
+
+  const eventStats = useMemo(() => {
+    const energies = events.map((event) => event.collision_energy ?? 0);
+    const jets = events.map((event) => event.collision?.jets ?? event.jets ?? 0);
+    const particleCount = events.reduce((sum, event) => sum + (event.particles?.length ?? 0), 0);
+    return {
+      events: events.length,
+      meanEnergyTeV: energies.length ? energies.reduce((sum, value) => sum + value, 0) / energies.length / 1000 : 0,
+      maxJets: jets.length ? Math.max(...jets) : 0,
+      particles: particleCount
+    };
+  }, [events]);
 
   return (
     <>
       <div className="panel-header">
         <h2>Analytics Dashboard</h2>
-        <p>Collision summaries, invariant mass distribution, and calorimeter occupancy</p>
+        <p>Streaming physics statistics and detector outputs</p>
       </div>
       <div className="metric-grid">
         {[
-          ["Collisions", summary?.metrics?.collision_count ?? 0],
-          ["Tracker Hits", summary?.metrics?.tracker_hit_count ?? 0],
-          ["Calorimeter Hits", summary?.metrics?.calorimeter_hit_count ?? 0],
-          ["Active Particles", summary?.active_particles ?? 0],
-          ["Mean Mass (GeV)", summary?.mean_invariant_mass_gev ?? 0],
-          ["Max Mass (GeV)", summary?.max_invariant_mass_gev ?? 0]
+          ["Events", eventStats.events],
+          ["Mean Energy", `${eventStats.meanEnergyTeV.toFixed(2)} TeV`],
+          ["Max Jets", eventStats.maxJets],
+          ["Particles", eventStats.particles]
         ].map(([label, value]) => (
           <article className="metric-card" key={label}>
-            <strong>{Number(value).toFixed(Number(value) >= 100 ? 0 : 3).replace(/\.000$/, "")}</strong>
+            <strong>{value}</strong>
             <span>{label}</span>
           </article>
         ))}
       </div>
-      <div className="dashboard-grid">
-        <section className="subpanel">
-          <h3>Invariant Mass Histogram</h3>
-          <Histogram bins={summary?.mass_histogram ?? []} />
-        </section>
-        <section className="subpanel">
-          <h3>Calorimeter Occupancy</h3>
-          <CalorimeterBars totals={payload?.calorimeter_phi_totals ?? []} />
-        </section>
+      <div className="analytics-grid analytics-grid--wide">
+        <EnergyGraph events={events} />
+        <MomentumHistogram events={events} />
+      </div>
+      <div className="analytics-grid">
+        <DetectorHeatmap events={events} />
+        <JetCountGraph events={events} />
+        <ParticleDistribution events={events} />
       </div>
     </>
   );
