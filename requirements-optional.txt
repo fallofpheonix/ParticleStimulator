@@ -1,0 +1,5 @@
+fastapi>=0.110.0
+h5py>=3.10
+pyarrow>=15.0
+pydantic>=2.0
+uvicorn>=0.29.0

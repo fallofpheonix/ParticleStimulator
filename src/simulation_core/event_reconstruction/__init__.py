@@ -19,7 +19,7 @@ from typing import List, Tuple, Optional, Dict
 
 import numpy as np
 
-from src.simulation_core.core_models.models import (
+from simulation_core.core_models.models import (
     DetectorHit,
     ReconstructedTrack,
     ReconstructedJet,

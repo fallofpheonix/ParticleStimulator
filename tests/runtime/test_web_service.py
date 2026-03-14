@@ -6,8 +6,8 @@ import threading
 import unittest
 from urllib import request
 
-from src.web.server import ParticleStimulatorHandler
-from src.web.service import simulate_payload
+from web.server import ParticleStimulatorHandler
+from web.service import simulate_payload
 
 
 class WebServiceTests(unittest.TestCase):

@@ -1,95 +1,89 @@
 # Particle Stimulator
 
-## Runtime Architecture
-
-Authoritative runtime layout:
+## Authoritative Runtime
 
 ```text
 src/
-├── web/               HTTP API, event stream, ML service, static serving
-├── simulation_core/   Integrated research-grade simulation pipeline from files.zip
-├── accelerator/       Legacy MVP physics modules still used by unit tests
-├── analysis/
-├── core/
-├── detectors/
-├── physics/
-├── simulation/
-├── visualization/
-├── models/            Reserved adapter package
-├── services/          Reserved adapter package
-└── utils/             Reserved utility package
+  web/               HTTP API, websocket stream, ML service, static serving
+  simulation_core/   Integrated simulation pipeline
+  analysis/          Offline Higgs training utilities
 
 frontend/
-├── src/               React/Vite application
-├── public/
-└── simulation_dashboard/  Legacy static prototype reference
-
-tests/
+  src/               React/Vite frontend runtime
 
 backend/
-└── server.py          Launcher shim only
-```
+  server.py          Thin launcher for web.server + web.socket_server
 
-Removed architectural drift:
-- duplicate backend API/controller tree under `backend/api_server/`
-- duplicate cached tree under `backend/src/`
-- all active backend execution now resolves from `src/`
+tests/
+  runtime/           Active runtime validation
+  legacy/            Archived test coverage for removed systems
+
+archive/
+  backend_platform/  Orphan backend platform tree
+  legacy_simulator/  Pre-simulation_core engine and examples
+  frontend_artifacts/
+```
 
 ## Active Entry Points
 
-- Backend HTTP server: [src/web/server.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/server.py)
-- Backend simulation adapter: [src/web/service.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/service.py)
-- Integrated simulation core: [src/simulation_core](/Users/fallofpheonix/Project/ParticleStimulator/src/simulation_core)
-- Frontend app: [frontend/src](/Users/fallofpheonix/Project/ParticleStimulator/frontend/src)
-- Optional launcher: [backend/server.py](/Users/fallofpheonix/Project/ParticleStimulator/backend/server.py)
+- Backend HTTP API: [server.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/server.py)
+- Backend event stream: [socket_server.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/socket_server.py)
+- Backend simulation adapter: [service.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/service.py)
+- Simulation engine: [simulation_core](/Users/fallofpheonix/Project/ParticleStimulator/src/simulation_core)
+- Analysis package: [analysis](/Users/fallofpheonix/Project/ParticleStimulator/src/analysis)
+- Frontend runtime: [frontend/src](/Users/fallofpheonix/Project/ParticleStimulator/frontend/src)
+- Backend launcher: [backend/server.py](/Users/fallofpheonix/Project/ParticleStimulator/backend/server.py)
 
-## Simulation Core
-
-`files.zip` is vendored under `src/simulation_core/` and exposed through the existing HTTP service layer. No second API controller is used.
-
-Pipeline:
-
-```text
-beam generation
-→ accelerator transport
-→ collision generation
-→ detector simulation
-→ event reconstruction
-→ physics analysis
-→ JSON payload adaptation in src/web/service.py
-```
-
-The frontend contract remains the same:
-- `summary`
-- `initial_particles`
-- `final_particles`
-- `collisions`
-- `tracker_hits`
-- `calorimeter_hits`
-- `detector_hits`
-- `timeline`
-
-## API
+## API Surface
 
 - `GET /api/health`
 - `GET /api/defaults`
-- `GET /api/ml/status`
 - `GET /api/events/recent`
+- `GET /api/ml/status`
 - `POST /api/simulate`
 - `POST /api/ml/train`
 - `POST /api/ml/predict`
+- `ws://127.0.0.1:8001/events`
 
-If `frontend/dist/index.html` exists, the backend serves the built React app. Otherwise it falls back to `src/web/static/`.
+## Packaging
 
-## Local Run
+- Runtime packages are installed from `src/` via `setup.py`.
+- Active imports use package names only:
+  - `web.*`
+  - `simulation_core.*`
+  - `analysis.*`
+- No active runtime path should depend on `PYTHONPATH=src`.
+
+## Install
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements-ml.txt
+.venv/bin/python -m pip install -e .
+```
+
+Optional platform dependencies:
+
+```bash
+.venv/bin/python -m pip install -r requirements-optional.txt
+```
+
+## Run
 
 Backend:
 
 ```bash
-python3 backend/server.py
+.venv/bin/python backend/server.py
 ```
 
-Frontend dev:
+Direct package entrypoint:
+
+```bash
+.venv/bin/python -m web.server
+```
+
+Frontend:
 
 ```bash
 cd frontend
@@ -97,20 +91,23 @@ npm install
 npm run dev
 ```
 
-Frontend production build:
+## Validation
+
+Runtime tests:
+
+```bash
+.venv/bin/python -m unittest discover -s tests/runtime
+```
+
+Frontend build:
 
 ```bash
 cd frontend
-npm install
 npm run build
 ```
 
-Tests:
+## Archived Systems
 
-```bash
-python3 -m unittest discover -s tests
-```
-
-## Packaging
-
-`src/` is now a real Python package root. Runtime and tests import `src.*` directly. `setup.py` packages `src` and `src.*` and declares the backend runtime dependencies.
+- `archive/backend_platform/`: unused backend API/config/data pipeline/event stream/infrastructure tree
+- `archive/legacy_simulator/`: pre-`simulation_core` engine packages and examples
+- `archive/frontend_artifacts/`: old frontend dumps and static prototypes

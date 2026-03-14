@@ -32,7 +32,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 
-from src.simulation_core.core_models.models import (
+from simulation_core.core_models.models import (
     ParticleState,
     CollisionEvent,
     DetectorHit,
@@ -41,7 +41,7 @@ from src.simulation_core.core_models.models import (
     SimulationConfig,
     BeamParameters,
 )
-from src.simulation_core.accelerator import (
+from simulation_core.accelerator import (
     BeamSource,
     BeamDynamics,
     AcceleratorLattice,
@@ -50,10 +50,10 @@ from src.simulation_core.accelerator import (
     RFCavity,
     VacuumChamber,
 )
-from src.simulation_core.collision_engine import CollisionEngine
-from src.simulation_core.detector import DetectorSimulator
-from src.simulation_core.event_reconstruction import EventReconstructor
-from src.simulation_core.analysis import PhysicsAnalyser
+from simulation_core.collision_engine import CollisionEngine
+from simulation_core.detector import DetectorSimulator
+from simulation_core.event_reconstruction import EventReconstructor
+from simulation_core.analysis import PhysicsAnalyser
 
 log = logging.getLogger("simulation_controller")
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s")

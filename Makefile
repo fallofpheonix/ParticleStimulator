@@ -1,41 +1,21 @@
 PYTHON   := .venv/bin/python
-PYTHONPATH := src
 
-.PHONY: test test-ml run-collision run-beam run-web fix-dataset
+.PHONY: install test test-legacy run-web fix-dataset
 
-## Run the core simulation test suite (no ML deps needed)
+install:
+	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -r requirements-ml.txt
+	$(PYTHON) -m pip install -e .
+
 test:
-	PYTHONPATH=$(PYTHONPATH) python3 -m unittest discover -s tests
+	$(PYTHON) -m unittest discover -s tests/runtime
 
-## Run ALL tests including the ML pipeline (requires .venv)
-test-all:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m unittest discover -s tests
-
-## Run the proton collision example
-run-collision:
-	PYTHONPATH=$(PYTHONPATH) python3 examples/proton_collision.py
-
-## Run the beam simulation example
-run-beam:
-	PYTHONPATH=$(PYTHONPATH) python3 examples/beam_simulation.py
+test-legacy:
+	$(PYTHON) -m unittest discover -s tests/legacy
 
 ## Run the backend API and frontend dashboard
 run-web:
-	PYTHONPATH=$(PYTHONPATH) python3 -m web.server
-
-## Train the Higgs baseline classifier (5k rows, fast)
-train-higgs-fast:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) machine_learning/event_classifier/higgs_classifier.py \
-		--dataset data/HIGGS.csv.gz \
-		--sample-size 5000 \
-		--artifact data/processed_events/higgs_baseline.joblib
-
-## Train on 1M rows (slower, better accuracy)
-train-higgs:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) machine_learning/event_classifier/higgs_classifier.py \
-		--dataset data/HIGGS.csv.gz \
-		--sample-size 1000000 \
-		--artifact data/processed_events/higgs_baseline.joblib
+	$(PYTHON) backend/server.py
 
 ## Move HIGGS.csv.gz from root to data/ after download completes
 fix-dataset:

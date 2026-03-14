@@ -3,20 +3,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 from http.server import ThreadingHTTPServer
-from pathlib import Path
 import threading
-import sys
 
-
-ROOT = Path(__file__).resolve().parents[1]
-BACKEND_DIR = Path(__file__).resolve().parent
-
-if sys.path and Path(sys.path[0]).resolve() == BACKEND_DIR:
-    sys.path.pop(0)
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from src.web.server import ParticleStimulatorHandler
+from web.server import ParticleStimulatorHandler
 
 
 def run_http_server(host: str, port: int) -> ThreadingHTTPServer:
@@ -28,10 +17,10 @@ def run_http_server(host: str, port: int) -> ThreadingHTTPServer:
 
 def main() -> None:
     try:
-        from src.web.socket_server import run_websocket_server
+        from web.socket_server import run_websocket_server
     except ModuleNotFoundError as exc:  # pragma: no cover - runtime environment safeguard
         raise SystemExit(
-            "websocket runtime dependency missing. Install project requirements or use `.venv/bin/python backend/server.py`."
+            "websocket runtime dependency missing. Install project requirements before starting the backend."
         ) from exc
 
     parser = argparse.ArgumentParser(description="Particle Stimulator API + websocket server")

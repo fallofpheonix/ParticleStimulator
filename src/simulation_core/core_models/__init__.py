@@ -1,6 +1,6 @@
 """Shared immutable data models for the integrated simulation pipeline."""
 
-from src.simulation_core.core_models.models import (
+from simulation_core.core_models.models import (
     AnalysisResult,
     BeamParameters,
     CollisionEvent,

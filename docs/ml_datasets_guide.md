@@ -46,9 +46,12 @@ collision dataset -> feature extraction -> training dataset -> ML model training
 - Loader accepts `HIGGS.csv` and `HIGGS.csv.gz`.
 - Dataset discovery checks `data/` first, then the repository root.
 - Baseline training entry point:
-  - `PYTHONPATH=src .venv/bin/python machine_learning/event_classifier/higgs_classifier.py --dataset HIGGS.csv.gz --sample-size 5000 --artifact data/processed_events/higgs_baseline.joblib`
+  - `.venv/bin/python machine_learning/event_classifier/higgs_classifier.py --dataset HIGGS.csv.gz --sample-size 5000 --artifact data/processed_events/higgs_baseline.joblib`
 - Backend selection:
   - `auto`: use XGBoost when the native library is loadable
   - `hist_gbdt`: force scikit-learn histogram gradient boosting
   - `xgboost`: require XGBoost and fail fast if its native runtime is broken
-- Dependency split: `requirements.txt` is the verified default ML stack; `requirements-xgboost.txt` enables the optional XGBoost backend.
+- Dependency split:
+  - `requirements.txt`: runtime dependencies
+  - `requirements-ml.txt`: ML training dependencies
+  - `requirements-optional.txt`: optional platform dependencies

@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 
-from src.simulation_core import BeamParameters, SimulationConfig, SimulationController
-from src.simulation_core.core_models import AnalysisResult, CollisionEvent, DetectorHit, ParticleState, ReconstructedEvent
-from src.web.event_stream import event_broker
+from simulation_core import BeamParameters, SimulationConfig, SimulationController
+from simulation_core.core_models import AnalysisResult, CollisionEvent, DetectorHit, ParticleState, ReconstructedEvent
+from web.event_stream import event_broker
 
 
 def _clamp(value: float, lower: float, upper: float) -> float:

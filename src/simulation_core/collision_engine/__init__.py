@@ -23,14 +23,14 @@ from typing import List, Tuple, Optional
 
 import numpy as np
 
-from src.simulation_core.core_models.models import (
+from simulation_core.core_models.models import (
     ParticleState,
     CollisionEvent,
     Vec3,
     PARTICLE_PROPERTIES,
     C,
 )
-from src.simulation_core.physics_engine import (
+from simulation_core.physics_engine import (
     make_particle,
     new_particle_id,
     sqrt_s,

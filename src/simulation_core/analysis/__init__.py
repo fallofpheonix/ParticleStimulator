@@ -26,7 +26,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised through fallback exe
     optimize = None
     stats = None
 
-from src.simulation_core.core_models.models import (
+from simulation_core.core_models.models import (
     ReconstructedEvent,
     AnalysisResult,
 )

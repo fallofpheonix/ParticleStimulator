@@ -29,6 +29,9 @@ src/
   services/
 ```
 
+Archived frontend artifacts now live under:
+- [archive/frontend_artifacts](/Users/fallofpheonix/Project/ParticleStimulator/archive/frontend_artifacts)
+
 ## Runtime
 ```bash
 npm install
@@ -52,7 +55,4 @@ npm run dev
 - `services/exportService.js`: JSON/CSV/PNG export helpers
 
 ## Legacy Files
-- `simulation_dashboard/`: plain-JS prototype retained for reference
-- `event_viewer/`: reserved placeholder
-- `ui_controls/`: reserved placeholder
-- `../frontendofpraticlestimulator/`: legacy AI-generated component dump used as adapter input for replay and event-inspection components; not a runtime application
+- Archived under [archive/frontend_artifacts](/Users/fallofpheonix/Project/ParticleStimulator/archive/frontend_artifacts)

@@ -8,9 +8,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from src.web.event_stream import event_broker
-from src.web.ml_service import ml_service
-from src.web.service import SimulationRequest, simulate_payload
+from web.event_stream import event_broker
+from web.ml_service import ml_service
+from web.service import SimulationRequest, simulate_payload
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]

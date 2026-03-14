@@ -18,7 +18,7 @@ from typing import List, Optional, Callable, Tuple
 
 import numpy as np
 
-from src.simulation_core.core_models.models import (
+from simulation_core.core_models.models import (
     ParticleState,
     BeamParameters,
     Vec3,
@@ -26,7 +26,7 @@ from src.simulation_core.core_models.models import (
     C,
     GEV_TO_J,
 )
-from src.simulation_core.physics_engine import (
+from simulation_core.physics_engine import (
     make_particle,
     ElectromagneticField,
     propagate_step,

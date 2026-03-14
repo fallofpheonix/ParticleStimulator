@@ -7,7 +7,7 @@ import json
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
-from src.web.event_stream import event_broker
+from web.event_stream import event_broker
 
 
 async def _handle_connection(websocket) -> None:

@@ -1,29 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-import importlib.util
 from pathlib import Path
-import sys
 from threading import Lock, Thread
 from typing import Any
 
-_HIGGS_MODULE_PATH = Path(__file__).resolve().parents[1] / "analysis" / "higgs.py"
-_HIGGS_SPEC = importlib.util.spec_from_file_location("particle_stimulator_higgs", _HIGGS_MODULE_PATH)
-if _HIGGS_SPEC is None or _HIGGS_SPEC.loader is None:  # pragma: no cover - import path guard
-    raise RuntimeError(f"unable to resolve higgs module at {_HIGGS_MODULE_PATH}")
-_HIGGS_MODULE = importlib.util.module_from_spec(_HIGGS_SPEC)
-sys.modules[_HIGGS_SPEC.name] = _HIGGS_MODULE
-_HIGGS_SPEC.loader.exec_module(_HIGGS_MODULE)
-
-FEATURE_NAMES = _HIGGS_MODULE.FEATURE_NAMES
-HiggsTrainingConfig = _HIGGS_MODULE.HiggsTrainingConfig
-_evaluate_model = _HIGGS_MODULE._evaluate_model
-_prepare_training_frame = _HIGGS_MODULE._prepare_training_frame
-_require_training_deps = _HIGGS_MODULE._require_training_deps
-_train_gradient_model = _HIGGS_MODULE._train_gradient_model
-discover_higgs_dataset = _HIGGS_MODULE.discover_higgs_dataset
-load_higgs_dataframe = _HIGGS_MODULE.load_higgs_dataframe
-save_training_artifact = _HIGGS_MODULE.save_training_artifact
+from analysis.higgs import (
+    FEATURE_NAMES,
+    HiggsTrainingConfig,
+    _evaluate_model,
+    _prepare_training_frame,
+    _require_training_deps,
+    _train_gradient_model,
+    discover_higgs_dataset,
+    load_higgs_dataframe,
+    save_training_artifact,
+)
 
 
 def _artifact_path() -> Path:
