@@ -3,9 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import time
+from collections import defaultdict
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Lock
 from urllib.parse import urlparse
 
 from web.event_stream import event_broker
@@ -17,6 +20,33 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 FRONTEND_DIST_DIR = ROOT_DIR / "frontend" / "dist"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 ACTIVE_STATIC_DIR = FRONTEND_DIST_DIR if (FRONTEND_DIST_DIR / "index.html").exists() else STATIC_DIR
+
+# Maximum allowed request body size (1 MiB) to prevent resource exhaustion.
+MAX_REQUEST_BODY_BYTES = 1 * 1024 * 1024
+
+# Rate-limiting: token-bucket per client IP for write endpoints.
+# Each bucket allows at most RATE_LIMIT_BURST requests in any RATE_LIMIT_WINDOW_S second window.
+RATE_LIMIT_WINDOW_S = 60.0
+RATE_LIMIT_BURST = 30
+_RATE_LIMIT_LOCK = Lock()
+_RATE_LIMIT_BUCKETS: dict[str, list[float]] = defaultdict(list)
+
+# Endpoints that consume significant server resources and are subject to rate limiting.
+_RATE_LIMITED_PATHS = frozenset({"/api/simulate", "/api/ml/train"})
+
+
+def _check_rate_limit(client_ip: str) -> bool:
+    """Return True if the request is allowed; False if the rate limit is exceeded."""
+    now = time.monotonic()
+    with _RATE_LIMIT_LOCK:
+        window_start = now - RATE_LIMIT_WINDOW_S
+        bucket = [ts for ts in _RATE_LIMIT_BUCKETS[client_ip] if ts > window_start]
+        if len(bucket) >= RATE_LIMIT_BURST:
+            _RATE_LIMIT_BUCKETS[client_ip] = bucket
+            return False
+        bucket.append(now)
+        _RATE_LIMIT_BUCKETS[client_ip] = bucket
+        return True
 
 
 def _json_bytes(payload: dict[str, object]) -> bytes:
@@ -66,7 +96,23 @@ class ParticleStimulatorHandler(BaseHTTPRequestHandler):
             self._write_json(HTTPStatus.NOT_FOUND, {"error": "unknown endpoint"})
             return
 
-        length = int(self.headers.get("Content-Length", "0"))
+        if parsed.path in _RATE_LIMITED_PATHS:
+            client_ip = self.client_address[0] if self.client_address else "unknown"
+            if not _check_rate_limit(client_ip):
+                self._write_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "rate limit exceeded"})
+                return
+
+        raw_length = self.headers.get("Content-Length", "0")
+        try:
+            length = int(raw_length)
+        except ValueError:
+            self._write_json(HTTPStatus.BAD_REQUEST, {"error": "invalid Content-Length"})
+            return
+
+        if length > MAX_REQUEST_BODY_BYTES:
+            self._write_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "request body too large"})
+            return
+
         raw_body = self.rfile.read(length) if length else b"{}"
         try:
             payload = json.loads(raw_body.decode("utf-8"))
@@ -99,8 +145,14 @@ class ParticleStimulatorHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self._send_security_headers()
         self.end_headers()
         self.wfile.write(body)
+
+    def _send_security_headers(self) -> None:
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy", "default-src 'none'")
 
     def _serve_static(self, raw_path: str) -> None:
         relative = raw_path.lstrip("/") or "index.html"
@@ -117,6 +169,8 @@ class ParticleStimulatorHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", f"{content_type or 'text/plain'}; charset=utf-8")
         self.send_header("Content-Length", str(len(content)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
         self.end_headers()
         self.wfile.write(content)
 

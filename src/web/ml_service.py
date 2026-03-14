@@ -22,6 +22,54 @@ def _artifact_path() -> Path:
     return Path(__file__).resolve().parents[2] / "data" / "processed_events" / "higgs_latest.joblib"
 
 
+# Limits on ML training hyper-parameters to prevent resource-exhaustion attacks.
+_MAX_SAMPLE_SIZE = 500_000
+_MAX_ESTIMATORS = 500
+_MAX_DEPTH = 12
+
+# The exact set of keys that a valid training artifact must contain.
+_ARTIFACT_REQUIRED_KEYS = frozenset({"model", "scaler", "feature_names", "metrics"})
+
+
+def _sanitize_training_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Clamp user-supplied training hyper-parameters to safe limits."""
+    sanitized = dict(payload)
+    if "sample_size" in sanitized:
+        try:
+            sanitized["sample_size"] = min(int(sanitized["sample_size"]), _MAX_SAMPLE_SIZE)
+        except (TypeError, ValueError):
+            del sanitized["sample_size"]
+    if "estimators" in sanitized:
+        try:
+            sanitized["estimators"] = min(int(sanitized["estimators"]), _MAX_ESTIMATORS)
+        except (TypeError, ValueError):
+            del sanitized["estimators"]
+    if "max_depth" in sanitized:
+        try:
+            sanitized["max_depth"] = min(int(sanitized["max_depth"]), _MAX_DEPTH)
+        except (TypeError, ValueError):
+            del sanitized["max_depth"]
+    # Reject user-supplied dataset paths to prevent path-traversal; the service
+    # selects the dataset automatically via discover_higgs_dataset.
+    sanitized.pop("dataset", None)
+    return sanitized
+
+
+def _validate_artifact(artifact: Any) -> bool:
+    """Return True only when the loaded artifact contains the expected structure."""
+    if not isinstance(artifact, dict):
+        return False
+    if not _ARTIFACT_REQUIRED_KEYS.issubset(artifact.keys()):
+        return False
+    feature_names = artifact.get("feature_names")
+    # Feature order is part of the model contract: the scaler and classifier
+    # were trained with features in this exact order, so we require an exact
+    # list match (not just a set comparison) to catch reordered artifacts.
+    if not isinstance(feature_names, list) or feature_names != FEATURE_NAMES:
+        return False
+    return True
+
+
 def _coerce_float(value: Any, default: float = 0.0) -> float:
     try:
         return float(value)
@@ -128,7 +176,7 @@ class MLService:
                 "metrics": None,
                 "error": None,
             }
-            self._thread = Thread(target=self._run_training, args=(payload or {},), daemon=True)
+            self._thread = Thread(target=self._run_training, args=(_sanitize_training_payload(payload or {}),), daemon=True)
             self._thread.start()
             return dict(self._status)
 
@@ -226,6 +274,8 @@ class MLService:
         try:
             deps = _require_training_deps()
             artifact = deps.joblib.load(artifact_path)
+            if not _validate_artifact(artifact):
+                return
             self._model = artifact.get("model")
             self._scaler = artifact.get("scaler")
             self._status = {

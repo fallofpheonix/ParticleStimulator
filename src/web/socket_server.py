@@ -43,7 +43,8 @@ async def _sender_loop(websocket, queue: asyncio.Queue[dict[str, object]]) -> No
 
 
 async def run_websocket_server(host: str = "127.0.0.1", port: int = 8001) -> None:
-    async with serve(_handle_connection, host, port, ping_interval=20, ping_timeout=20):
+    # max_size limits incoming WebSocket frame size (64 KiB) to prevent oversized message attacks.
+    async with serve(_handle_connection, host, port, ping_interval=20, ping_timeout=20, max_size=65536):
         await asyncio.Future()
 
 

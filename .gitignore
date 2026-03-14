@@ -20,3 +20,4 @@ data/processed_events/*.pkl
 *.log
 *.tmp
 *.swp
+src/particle_stimulator.egg-info/
