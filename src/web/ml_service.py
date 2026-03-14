@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 from pathlib import Path
 from threading import Lock, Thread
@@ -16,6 +17,8 @@ from analysis.higgs import (
     load_higgs_dataframe,
     save_training_artifact,
 )
+
+_LOG = logging.getLogger(__name__)
 
 
 def _artifact_path() -> Path:
@@ -223,6 +226,27 @@ class MLService:
         artifact_path = _artifact_path()
         if not artifact_path.exists():
             return
+        # Validate the artifact resides inside the expected data directory.
+        # joblib.load uses pickle under the hood, which can execute arbitrary
+        # code.  Only load from the designated artifacts directory; reject any
+        # path that resolves outside of it (e.g. due to symlinks or unexpected
+        # values from _artifact_path()).
+        expected_dir = Path(__file__).resolve().parents[2] / "data" / "processed_events"
+        try:
+            resolved = artifact_path.resolve()
+            resolved.relative_to(expected_dir.resolve())
+        except ValueError:
+            _LOG.warning(
+                "Artifact at %s is outside the expected directory %s — skipping load.",
+                artifact_path,
+                expected_dir,
+            )
+            return
+        _LOG.warning(
+            "Loading ML artifact from %s via joblib (pickle-based). "
+            "Only load artifacts from trusted sources.",
+            artifact_path,
+        )
         try:
             deps = _require_training_deps()
             artifact = deps.joblib.load(artifact_path)
