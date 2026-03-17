@@ -12,21 +12,16 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, List
 
-# Type aliases for readability
-Vec3 = Tuple[float, float, float]
+# Type aliases
+Vec3 = tuple[float, float, float]
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Physical constants (SI)
-# ─────────────────────────────────────────────────────────────────────────────
 C = 299_792_458.0          # m/s
 GEV_TO_J = 1.602_176_634e-10  # 1 GeV = 1e9 × e joules
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Particle species registry
-# ─────────────────────────────────────────────────────────────────────────────
+
 PARTICLE_PROPERTIES: dict[str, dict] = {
     "proton":     {"mass_gev": 0.938272,  "charge": +1, "stable": True},
     "antiproton": {"mass_gev": 0.938272,  "charge": -1, "stable": True},
@@ -54,9 +49,7 @@ PARTICLE_PROPERTIES: dict[str, dict] = {
 }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ParticleState — the fundamental unit of the simulation
-# ─────────────────────────────────────────────────────────────────────────────
+
 @dataclass(frozen=True)
 class ParticleState:
     """
@@ -72,10 +65,9 @@ class ParticleState:
     mass_gev: float                  # Rest mass in GeV/c²
     charge: float                    # Electric charge in units of e
     alive: bool = True               # False = absorbed, decayed, or lost
-    parent_id: Optional[int] = None  # ID of creating particle (None = primary)
+    parent_id: int | None = None  # ID of creating particle (None = primary)
     generation: int = 0              # 0 = beam, 1 = collision product, 2+ = decay
 
-    # ── Derived kinematics ──────────────────────────────────────────────────
 
     @property
     def p_mag(self) -> float:
@@ -184,9 +176,7 @@ class ParticleState:
         }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CollisionEvent — output of the collision engine
-# ─────────────────────────────────────────────────────────────────────────────
+
 @dataclass(frozen=True)
 class CollisionEvent:
     """
@@ -195,19 +185,19 @@ class CollisionEvent:
     event_id: int
     vertex: Vec3                           # Interaction point (metres)
     sqrt_s_gev: float                      # Centre-of-mass energy √s (GeV)
-    incoming: Tuple[ParticleState, ParticleState]  # The two colliding particles
-    final_state: List[ParticleState]       # All post-collision particles
+    incoming: tuple[ParticleState, ParticleState]  # The two colliding particles
+    final_state: list[ParticleState]       # All post-collision particles
     process: str = "pp"                    # e.g. "pp", "gg→gg", "qq→qq"
     parton_x1: float = 0.0                 # Momentum fraction of parton 1
     parton_x2: float = 0.0                 # Momentum fraction of parton 2
     weight: float = 1.0                    # Monte Carlo event weight
 
     @property
-    def charged_particles(self) -> List[ParticleState]:
+    def charged_particles(self) -> list[ParticleState]:
         return [p for p in self.final_state if p.charge != 0]
 
     @property
-    def neutral_particles(self) -> List[ParticleState]:
+    def neutral_particles(self) -> list[ParticleState]:
         return [p for p in self.final_state if p.charge == 0]
 
     @property
@@ -228,9 +218,7 @@ class CollisionEvent:
         }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# DetectorHit — raw signal from detector hardware
-# ─────────────────────────────────────────────────────────────────────────────
+
 @dataclass(frozen=True)
 class DetectorHit:
     """
@@ -255,14 +243,12 @@ class DetectorHit:
         }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Reconstruction objects
-# ─────────────────────────────────────────────────────────────────────────────
+
 @dataclass(frozen=True)
 class ReconstructedTrack:
     """A charged particle track built from tracker hits by the Kalman filter."""
     track_id: int
-    hits: List[DetectorHit]         # Ordered list of tracker hits
+    hits: list[DetectorHit]         # Ordered list of tracker hits
     momentum: Vec3                  # Reconstructed 3-momentum (GeV/c) at vertex
     charge: float                   # Reconstructed charge
     chi2_per_ndof: float            # Track fit quality
@@ -293,8 +279,8 @@ class ReconstructedTrack:
 class ReconstructedJet:
     """A jet cluster built from calorimeter deposits by the anti-kT algorithm."""
     jet_id: int
-    four_momentum: Tuple[float, float, float, float]  # (E, px, py, pz) GeV
-    constituents: List[DetectorHit]
+    four_momentum: tuple[float, float, float, float]  # (E, px, py, pz) GeV
+    constituents: list[DetectorHit]
     algorithm: str = "anti_kt"
     radius: float = 0.4
 
@@ -353,7 +339,7 @@ class ReconstructedVertex:
     """A primary or secondary interaction vertex found from tracks."""
     vertex_id: int
     position: Vec3
-    tracks: List[ReconstructedTrack]
+    tracks: list[ReconstructedTrack]
     chi2_per_ndof: float
     is_primary: bool = True
 
@@ -374,15 +360,15 @@ class ReconstructedEvent:
     This is the primary input to the analysis stage.
     """
     event_id: int
-    tracks: List[ReconstructedTrack]
-    jets: List[ReconstructedJet]
-    vertices: List[ReconstructedVertex]
+    tracks: list[ReconstructedTrack]
+    jets: list[ReconstructedJet]
+    vertices: list[ReconstructedVertex]
     met_gev: float                   # Missing transverse energy
     met_phi_rad: float               # MET azimuthal angle
-    raw_hits: List[DetectorHit]      # All detector hits for reference
+    raw_hits: list[DetectorHit]      # All detector hits for reference
 
     @property
-    def primary_vertex(self) -> Optional[ReconstructedVertex]:
+    def primary_vertex(self) -> ReconstructedVertex | None:
         for v in self.vertices:
             if v.is_primary:
                 return v
@@ -413,9 +399,7 @@ class ReconstructedEvent:
         }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# AnalysisResult — output of the physics analysis stage
-# ─────────────────────────────────────────────────────────────────────────────
+
 @dataclass(frozen=True)
 class AnalysisResult:
     """
@@ -426,8 +410,8 @@ class AnalysisResult:
     value: float                           # Primary result value
     uncertainty: float                     # Statistical uncertainty (1σ)
     units: str                             # e.g. "GeV", "sigma", "pb"
-    histogram_bins: Optional[List[float]] = None  # Bin edges
-    histogram_counts: Optional[List[float]] = None  # Bin counts
+    histogram_bins: list[float] | None = None  # Bin edges
+    histogram_counts: list[float] | None = None  # Bin counts
     significance_sigma: float = 0.0
     metadata: dict = field(default_factory=dict)
 
@@ -453,9 +437,7 @@ class AnalysisResult:
         }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Configuration / input models
-# ─────────────────────────────────────────────────────────────────────────────
+
 @dataclass(frozen=True)
 class BeamParameters:
     """Configuration for the accelerator beam source."""

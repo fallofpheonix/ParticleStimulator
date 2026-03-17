@@ -19,7 +19,6 @@ from __future__ import annotations
 import math
 import random
 import itertools
-from typing import List, Tuple, Optional
 
 import numpy as np
 
@@ -41,14 +40,11 @@ from simulation_core.physics_engine import (
 _event_id_counter = itertools.count(1)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# collision_detector.py — find colliding pairs
-# ─────────────────────────────────────────────────────────────────────────────
 
 def find_collisions(
-    particles: List[ParticleState],
+    particles: list[ParticleState],
     interaction_radius_m: float = 0.05,
-) -> List[Tuple[ParticleState, ParticleState]]:
+) -> list[tuple[ParticleState, ParticleState]]:
     """
     Identify all pairs of alive particles within the interaction radius
     that are converging (negative closing rate).
@@ -87,9 +83,6 @@ def find_collisions(
     return pairs
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# parton_distribution.py — PDF-inspired momentum fraction sampling
-# ─────────────────────────────────────────────────────────────────────────────
 
 # Parton flavour labels with approximate valence/sea/gluon probabilities
 _PARTON_TABLE = [
@@ -113,7 +106,7 @@ for w in _PARTON_WEIGHTS:
 _PARTON_TOTAL = _acc
 
 
-def sample_parton(rng: random.Random) -> Tuple[str, float]:
+def sample_parton(rng: random.Random) -> tuple[str, float]:
     """
     Sample a parton flavour and momentum fraction x.
 
@@ -144,16 +137,13 @@ def sample_parton(rng: random.Random) -> Tuple[str, float]:
     return flavour, x
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# scattering_engine.py — QCD 2→2 hard scattering
-# ─────────────────────────────────────────────────────────────────────────────
 
 def qcd_scatter(
     parton1: str,
     parton2: str,
     sqrt_s_hat_gev: float,
     rng: random.Random,
-) -> List[Tuple[str, float, float, float]]:
+) -> list[tuple[str, float, float, float]]:
     """
     Simplified QCD 2→2 scattering.
 
@@ -208,9 +198,6 @@ def qcd_scatter(
     return results
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# particle_shower.py — DGLAP parton cascade
-# ─────────────────────────────────────────────────────────────────────────────
 
 def generate_shower(
     flavour: str,
@@ -221,7 +208,7 @@ def generate_shower(
     cutoff_gev: float = 1.0,
     max_depth: int = 6,
     alpha_s: float = 0.118,
-) -> List[Tuple[str, float, float, float]]:
+) -> list[tuple[str, float, float, float]]:
     """
     Simplified DGLAP parton shower via recursive splitting.
 
@@ -270,9 +257,6 @@ def generate_shower(
     return result
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# hadronization.py — string fragmentation model
-# ─────────────────────────────────────────────────────────────────────────────
 
 # Simplified Lund string fragmentation: map parton flavours to hadron species
 _HADRON_TABLE = {
@@ -297,11 +281,11 @@ def _hadron_from_parton(flavour: str, rng: random.Random) -> str:
 
 
 def hadronize(
-    shower_partons: List[Tuple[str, float, float, float]],
+    shower_partons: list[tuple[str, float, float, float]],
     vertex: Vec3,
     rng: random.Random,
     parent_id: int = None,
-) -> List[ParticleState]:
+) -> list[ParticleState]:
     """
     Convert shower partons into observable hadrons.
 
@@ -338,9 +322,6 @@ def hadronize(
     return hadrons
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# particle_decay.py — unstable particle decay chains
-# ─────────────────────────────────────────────────────────────────────────────
 
 # Decay channels: species → [(daughters tuple, branching ratio), ...]
 _DECAY_TABLE = {
@@ -358,7 +339,7 @@ STABLE_SPECIES = {"proton", "electron", "positron", "photon", "neutrino",
                   "pi+", "pi-", "antiproton"}
 
 
-def _sample_decay_channel(species: str, rng: random.Random) -> Optional[Tuple[str, ...]]:
+def _sample_decay_channel(species: str, rng: random.Random) -> tuple[str, ... | None]:
     """Sample a decay channel for the given species. Returns None if stable."""
     if species in STABLE_SPECIES:
         return None
@@ -376,9 +357,9 @@ def _sample_decay_channel(species: str, rng: random.Random) -> Optional[Tuple[st
 
 def _isotropic_decay(
     parent: ParticleState,
-    daughter_species: Tuple[str, ...],
+    daughter_species: tuple[str, ...],
     rng: random.Random,
-) -> List[ParticleState]:
+) -> list[ParticleState]:
     """
     Decay a parent into daughter particles with isotropic kinematics in the CM frame.
     Uses a simplified 2- or 3-body phase space.
@@ -425,10 +406,10 @@ def _isotropic_decay(
 
 
 def decay_all(
-    particles: List[ParticleState],
+    particles: list[ParticleState],
     rng: random.Random,
     max_depth: int = 8,
-) -> List[ParticleState]:
+) -> list[ParticleState]:
     """
     Recursively decay all unstable particles until only stable ones remain.
 
@@ -462,9 +443,6 @@ def decay_all(
     return final
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CollisionEngine — top-level orchestrator
-# ─────────────────────────────────────────────────────────────────────────────
 
 class CollisionEngine:
     """
@@ -484,7 +462,7 @@ class CollisionEngine:
         self.cutoff_gev = cutoff_gev
         self._rng = random.Random(seed)
 
-    def simulate_collision(self, particles: List[ParticleState]) -> List[CollisionEvent]:
+    def simulate_collision(self, particles: list[ParticleState]) -> list[CollisionEvent]:
         """
         Process all eligible collision pairs in a particle list.
 
@@ -511,7 +489,7 @@ class CollisionEngine:
         self,
         p1: ParticleState,
         p2: ParticleState,
-    ) -> Optional[CollisionEvent]:
+    ) -> CollisionEvent | None:
         """Run the full pipeline for a single pair."""
         # Interaction vertex = midpoint
         vertex = (

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 import itertools
-from typing import List, Tuple, Callable
+from typing import Callable
 
 import numpy as np
 
@@ -58,9 +58,6 @@ def make_particle(
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# relativistic_kinematics.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 def gamma_factor(p_mag_gev: float, mass_gev: float) -> float:
     """Lorentz factor γ = E / mc² = √(1 + (p/mc)²)."""
@@ -119,9 +116,6 @@ def sqrt_s(p1: ParticleState, p2: ParticleState) -> float:
     return invariant_mass_pair(p1, p2)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# lorentz_force.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 def lorentz_force_si(
     charge_e: float,
@@ -157,9 +151,6 @@ def cyclotron_radius_m(p_transverse_gev: float, charge_e: float, B_T: float) -> 
     return p_si / (q_mag * B_T)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# motion_integrator.py — Boris push algorithm
-# ─────────────────────────────────────────────────────────────────────────────
 
 def boris_push(
     particle: ParticleState,
@@ -247,9 +238,6 @@ def boris_push(
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# electromagnetic_field.py — composite field evaluation
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ElectromagneticField:
     """
@@ -260,14 +248,14 @@ class ElectromagneticField:
     """
 
     def __init__(self):
-        self._sources: List[Callable[[Vec3], Tuple[np.ndarray, np.ndarray]]] = []
+        self._sources: list[Callable[[Vec3], tuple[np.ndarray, np.ndarray]]] = []
 
-    def add_source(self, source: Callable[[Vec3], Tuple[np.ndarray, np.ndarray]]):
+    def add_source(self, source: Callable[[Vec3], tuple[np.ndarray, np.ndarray]]):
         """Register a field source function."""
         self._sources.append(source)
         return self
 
-    def evaluate(self, position: Vec3) -> Tuple[np.ndarray, np.ndarray]:
+    def evaluate(self, position: Vec3) -> tuple[np.ndarray, np.ndarray]:
         """Return total (E, B) at a given position."""
         E_total = np.zeros(3)
         B_total = np.zeros(3)
@@ -290,16 +278,13 @@ class ElectromagneticField:
         return self
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# simulation_kernel.py — single-step and multi-step propagation
-# ─────────────────────────────────────────────────────────────────────────────
 
 def propagate_step(
-    particles: List[ParticleState],
+    particles: list[ParticleState],
     field: ElectromagneticField,
     dt_s: float,
     aperture_check: Callable[[Vec3], bool] = None,
-) -> List[ParticleState]:
+) -> list[ParticleState]:
     """
     Advance all alive particles by one timestep using the Boris push.
 

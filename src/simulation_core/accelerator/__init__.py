@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import List, Optional, Callable, Tuple
+from typing import Callable
 
 import numpy as np
 
@@ -36,9 +36,6 @@ from simulation_core.physics_engine import (
 )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# beam_source.py — Generate initial particle beams
-# ─────────────────────────────────────────────────────────────────────────────
 
 class BeamSource:
     """
@@ -63,7 +60,7 @@ class BeamSource:
         norm = math.sqrt(dx*dx + dy*dy + dz*dz) or 1.0
         return (p_mag * dx / norm, p_mag * dy / norm, p_mag * dz / norm)
 
-    def _sample_transverse_offset(self) -> Tuple[float, float]:
+    def _sample_transverse_offset(self) -> tuple[float, float]:
         """Sample a (y, z) transverse position from a Gaussian distribution."""
         sigma = self.params.bunch_spread_m
         dy = self._rng.gauss(0.0, sigma)
@@ -78,7 +75,7 @@ class BeamSource:
         jitter = self._rng.gauss(0.0, spacing * 0.1)
         return center_offset + jitter
 
-    def emit_beam(self, base_x: float = 0.04) -> List[ParticleState]:
+    def emit_beam(self, base_x: float = 0.04) -> list[ParticleState]:
         """
         Emit counter-propagating beam bunches.
 
@@ -103,9 +100,6 @@ class BeamSource:
         return particles
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# dipole_magnet.py — uniform B_z bending magnet
-# ─────────────────────────────────────────────────────────────────────────────
 
 class DipoleMagnet:
     """
@@ -120,7 +114,7 @@ class DipoleMagnet:
         self.length_m = length_m      # Effective magnetic length
         self.aperture_m = aperture_m  # Half-aperture
 
-    def field_at(self, position: Vec3) -> Tuple[np.ndarray, np.ndarray]:
+    def field_at(self, position: Vec3) -> tuple[np.ndarray, np.ndarray]:
         """Return (E=0, B=B_z ẑ) at any position."""
         return np.zeros(3), np.array([0.0, 0.0, self.field_t])
 
@@ -137,9 +131,6 @@ class DipoleMagnet:
         return self.length_m / rho if not math.isinf(rho) else 0.0
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# quadrupole_magnet.py — linear gradient focusing
-# ─────────────────────────────────────────────────────────────────────────────
 
 class QuadrupoleMagnet:
     """
@@ -152,7 +143,7 @@ class QuadrupoleMagnet:
         self.length_m = length_m
         self.bore_r_m = bore_r_m
 
-    def field_at(self, position: Vec3) -> Tuple[np.ndarray, np.ndarray]:
+    def field_at(self, position: Vec3) -> tuple[np.ndarray, np.ndarray]:
         """B = G·y x̂ + G·x ŷ (linear gradient field)."""
         x, y, z = position
         return np.zeros(3), np.array([self.gradient * y, self.gradient * x, 0.0])
@@ -165,9 +156,6 @@ class QuadrupoleMagnet:
         return p_si / qgl if qgl > 0 else float("inf")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# rf_cavity.py — RF acceleration cavity
-# ─────────────────────────────────────────────────────────────────────────────
 
 class RFCavity:
     """
@@ -192,7 +180,7 @@ class RFCavity:
         self.sync_phase_rad = sync_phase_rad
         self._omega = 2.0 * math.pi * frequency_hz
 
-    def field_at(self, position: Vec3, time_s: float = 0.0) -> Tuple[np.ndarray, np.ndarray]:
+    def field_at(self, position: Vec3, time_s: float = 0.0) -> tuple[np.ndarray, np.ndarray]:
         """
         Returns (E, B=0) at a given position and time.
         E is along ŷ inside the cavity gap.
@@ -214,9 +202,6 @@ class RFCavity:
         return self.peak_voltage_v * math.cos(self.sync_phase_rad) * e / GEV_TO_J
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# vacuum_chamber.py — beam pipe acceptance boundary
-# ─────────────────────────────────────────────────────────────────────────────
 
 class VacuumChamber:
     """
@@ -240,9 +225,6 @@ class VacuumChamber:
         return max(0.0, self.aperture_r_m - r)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# beam_dynamics.py — thread the lattice; advance beams to the IP
-# ─────────────────────────────────────────────────────────────────────────────
 
 class AcceleratorLattice:
     """
@@ -265,19 +247,22 @@ class AcceleratorLattice:
         self.rf_cavity = rf_cavity or RFCavity()
         self.vacuum = vacuum or VacuumChamber()
 
-    def field_at(self, position: Vec3, time_s: float = 0.0) -> Tuple[np.ndarray, np.ndarray]:
+    def field_at(self, position: Vec3, time_s: float = 0.0) -> tuple[np.ndarray, np.ndarray]:
         """Sum of all lattice element fields at a given position and time."""
         E_total = np.zeros(3)
         B_total = np.zeros(3)
 
         E, B = self.dipole.field_at(position)
-        E_total += E; B_total += B
+        E_total += E
+        B_total += B
 
         E, B = self.quadrupole.field_at(position)
-        E_total += E; B_total += B
+        E_total += E
+        B_total += B
 
         E, B = self.rf_cavity.field_at(position, time_s)
-        E_total += E; B_total += B
+        E_total += E
+        B_total += B
 
         return E_total, B_total
 
@@ -305,7 +290,7 @@ class BeamDynamics:
         self.max_steps = max_steps
         self._em_field = self.lattice.as_em_field()
 
-    def transport_to_ip(self, particles: List[ParticleState]) -> List[ParticleState]:
+    def transport_to_ip(self, particles: list[ParticleState]) -> list[ParticleState]:
         """
         Advance all particles through the lattice until they reach the IP (z≈0)
         or are lost on the aperture.
@@ -336,7 +321,7 @@ class BeamDynamics:
 
         return active
 
-    def run_n_turns(self, particles: List[ParticleState], n_turns: int) -> List[ParticleState]:
+    def run_n_turns(self, particles: list[ParticleState], n_turns: int) -> list[ParticleState]:
         """
         Advance particles for n_turns full revolution cycles.
         Used for emittance growth and loss studies.

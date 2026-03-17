@@ -16,7 +16,6 @@ from __future__ import annotations
 import math
 import random
 import itertools
-from typing import List, Tuple, Optional
 
 import numpy as np
 
@@ -31,9 +30,6 @@ from simulation_core.core_models.models import (
 _hit_id_counter = itertools.count(1)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# detector_geometry.py — layer definitions and acceptance
-# ─────────────────────────────────────────────────────────────────────────────
 
 class DetectorGeometry:
     """
@@ -67,7 +63,7 @@ class DetectorGeometry:
     ]
 
     @classmethod
-    def layer_for_radius(cls, r: float, z: float) -> Optional[str]:
+    def layer_for_radius(cls, r: float, z: float) -> str | None:
         """Return the detector layer name for a given (r, z) position."""
         for name, r_in, r_out, z_half, _ in cls.LAYERS:
             if r_in <= r <= r_out and abs(z) <= z_half:
@@ -75,7 +71,7 @@ class DetectorGeometry:
         return None
 
     @classmethod
-    def tracker_layers(cls) -> List[Tuple[str, float, float, float]]:
+    def tracker_layers(cls) -> list[tuple[str, float, float, float]]:
         """Return all tracker layer definitions: (name, r_mid, r_in, r_out)."""
         return [(n, (ri+ro)/2, ri, ro) for n, ri, ro, zh, t in cls.LAYERS if t == "tracker"]
 
@@ -90,9 +86,6 @@ class DetectorGeometry:
         return math.sqrt(x*x + y*y)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# energy_deposition.py — shower and ionisation models
-# ─────────────────────────────────────────────────────────────────────────────
 
 # EM-interacting species (shower in EM cal)
 EM_SPECIES = {"electron", "positron", "photon"}
@@ -120,9 +113,6 @@ def had_shower_fraction(particle: ParticleState) -> float:
     return 0.0
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# sensor_digitization.py — apply resolution smearing and noise
-# ─────────────────────────────────────────────────────────────────────────────
 
 def smear_position(position: Vec3, sigma_m: float, rng: random.Random) -> Vec3:
     """Apply Gaussian position smearing with σ = sigma_m."""
@@ -143,9 +133,31 @@ def smear_energy(energy_gev: float, sigma_stochastic: float, rng: random.Random)
     return max(0.0, energy_gev * (1.0 + rng.gauss(0.0, sigma_rel)))
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# silicon_tracker.py — charged particle hit generation
-# ─────────────────────────────────────────────────────────────────────────────
+def _extrapolate_to_radius(p: ParticleState, r_target: float) -> Vec3 | None:
+    """Straight-line extrapolation from particle origin to cylindrical radius r_target."""
+    p_vec = np.array(p.momentum, dtype=np.float64)
+    p_mag = float(np.linalg.norm(p_vec))
+    if p_mag == 0:
+        return None
+    p_hat = p_vec / p_mag
+    origin = np.array(p.position, dtype=np.float64)
+    ox, oy, oz = origin
+    dx, dy, dz = p_hat
+    a = dx*dx + dy*dy
+    b = 2*(ox*dx + oy*dy)
+    c = ox*ox + oy*oy - r_target**2
+    disc = b*b - 4*a*c
+    if a < 1e-15 or disc < 0:
+        return None
+    t = (-b + math.sqrt(max(0, disc))) / (2*a)
+    if t < 0:
+        t = (-b - math.sqrt(max(0, disc))) / (2*a)
+    if t < 0:
+        return None
+    pos = origin + t * p_hat
+    return (float(pos[0]), float(pos[1]), float(pos[2]))
+
+
 
 class SiliconTracker:
     """
@@ -159,10 +171,10 @@ class SiliconTracker:
 
     def simulate(
         self,
-        particles: List[ParticleState],
+        particles: list[ParticleState],
         rng: random.Random,
         seen: set = None,
-    ) -> List[DetectorHit]:
+    ) -> list[DetectorHit]:
         """
         Generate tracker hits for all charged particles.
 
@@ -246,9 +258,6 @@ class SiliconTracker:
         return hits
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# electromagnetic_calorimeter.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 class EMCalorimeter:
     """
@@ -263,9 +272,9 @@ class EMCalorimeter:
 
     def simulate(
         self,
-        particles: List[ParticleState],
+        particles: list[ParticleState],
         rng: random.Random,
-    ) -> List[DetectorHit]:
+    ) -> list[DetectorHit]:
         hits = []
         for p in particles:
             if not p.alive:
@@ -280,7 +289,7 @@ class EMCalorimeter:
             energy_smeared = smear_energy(energy_deposited, self.STOCHASTIC_TERM, rng)
 
             # Extrapolate to EM cal radius
-            pos = self._extrapolate_to_radius(p, self.R_MID_M)
+            pos = _extrapolate_to_radius(p, self.R_MID_M)
             if pos is None:
                 continue
 
@@ -296,37 +305,6 @@ class EMCalorimeter:
             hits.append(hit)
         return hits
 
-    def _extrapolate_to_radius(self, p: ParticleState, r_target: float) -> Optional[Vec3]:
-        """Straight-line extrapolation to a given cylindrical radius."""
-        p_vec = np.array(p.momentum, dtype=np.float64)
-        p_mag = float(np.linalg.norm(p_vec))
-        if p_mag == 0:
-            return None
-        p_hat = p_vec / p_mag
-        origin = np.array(p.position, dtype=np.float64)
-
-        ox, oy, oz = origin
-        dx, dy, dz = p_hat
-        a = dx*dx + dy*dy
-        b = 2*(ox*dx + oy*dy)
-        c = ox*ox + oy*oy - r_target**2
-        disc = b*b - 4*a*c
-        if a < 1e-15 or disc < 0:
-            return None
-
-        t = (-b + math.sqrt(max(0, disc))) / (2*a)
-        if t < 0:
-            t = (-b - math.sqrt(max(0, disc))) / (2*a)
-        if t < 0:
-            return None
-
-        pos = origin + t * p_hat
-        return (float(pos[0]), float(pos[1]), float(pos[2]))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# hadronic_calorimeter.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 class HadronicCalorimeter:
     """
@@ -340,9 +318,9 @@ class HadronicCalorimeter:
 
     def simulate(
         self,
-        particles: List[ParticleState],
+        particles: list[ParticleState],
         rng: random.Random,
-    ) -> List[DetectorHit]:
+    ) -> list[DetectorHit]:
         hits = []
         for p in particles:
             if not p.alive:
@@ -356,7 +334,7 @@ class HadronicCalorimeter:
             energy_deposited = p.energy_gev * frac
             energy_smeared = smear_energy(energy_deposited, self.STOCHASTIC_TERM, rng)
 
-            pos = self._extrapolate_to_radius(p, self.R_MID_M)
+            pos = _extrapolate_to_radius(p, self.R_MID_M)
             if pos is None:
                 continue
 
@@ -372,34 +350,6 @@ class HadronicCalorimeter:
             hits.append(hit)
         return hits
 
-    def _extrapolate_to_radius(self, p: ParticleState, r_target: float) -> Optional[Vec3]:
-        """Identical to EM cal extrapolation."""
-        p_vec = np.array(p.momentum, dtype=np.float64)
-        p_mag = float(np.linalg.norm(p_vec))
-        if p_mag == 0:
-            return None
-        p_hat = p_vec / p_mag
-        origin = np.array(p.position, dtype=np.float64)
-        ox, oy, oz = origin
-        dx, dy, dz = p_hat
-        a = dx*dx + dy*dy
-        b = 2*(ox*dx + oy*dy)
-        c = ox*ox + oy*oy - r_target**2
-        disc = b*b - 4*a*c
-        if a < 1e-15 or disc < 0:
-            return None
-        t = (-b + math.sqrt(max(0, disc))) / (2*a)
-        if t < 0:
-            t = (-b - math.sqrt(max(0, disc))) / (2*a)
-        if t < 0:
-            return None
-        pos = origin + t * p_hat
-        return (float(pos[0]), float(pos[1]), float(pos[2]))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# muon_chamber.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 class MuonChamber:
     """
@@ -418,9 +368,9 @@ class MuonChamber:
 
     def simulate(
         self,
-        particles: List[ParticleState],
+        particles: list[ParticleState],
         rng: random.Random,
-    ) -> List[DetectorHit]:
+    ) -> list[DetectorHit]:
         hits = []
         for p in particles:
             if not p.alive or p.species not in MUON_SPECIES:
@@ -429,7 +379,7 @@ class MuonChamber:
                 continue
 
             for station_name, r_station in self.STATIONS:
-                pos = self._extrapolate_to_radius(p, r_station)
+                pos = _extrapolate_to_radius(p, r_station)
                 if pos is None:
                     continue
                 if abs(pos[2]) > 10.0:
@@ -449,33 +399,6 @@ class MuonChamber:
 
         return hits
 
-    def _extrapolate_to_radius(self, p: ParticleState, r_target: float) -> Optional[Vec3]:
-        p_vec = np.array(p.momentum, dtype=np.float64)
-        p_mag = float(np.linalg.norm(p_vec))
-        if p_mag == 0:
-            return None
-        p_hat = p_vec / p_mag
-        origin = np.array(p.position, dtype=np.float64)
-        ox, oy, oz = origin
-        dx, dy, dz = p_hat
-        a = dx*dx + dy*dy
-        b = 2*(ox*dx + oy*dy)
-        c = ox*ox + oy*oy - r_target**2
-        disc = b*b - 4*a*c
-        if a < 1e-15 or disc < 0:
-            return None
-        t = (-b + math.sqrt(max(0, disc))) / (2*a)
-        if t < 0:
-            t = (-b - math.sqrt(max(0, disc))) / (2*a)
-        if t < 0:
-            return None
-        pos = origin + t * p_hat
-        return (float(pos[0]), float(pos[1]), float(pos[2]))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# DetectorSimulator — orchestrates all sub-detectors
-# ─────────────────────────────────────────────────────────────────────────────
 
 class DetectorSimulator:
     """
@@ -494,8 +417,8 @@ class DetectorSimulator:
 
     def simulate_detector(
         self,
-        particles: List[ParticleState],
-    ) -> List[DetectorHit]:
+        particles: list[ParticleState],
+    ) -> list[DetectorHit]:
         """
         Simulate full detector response for a list of final-state particles.
 
