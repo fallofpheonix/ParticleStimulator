@@ -9,8 +9,8 @@ External systems (API, WebSocket, database) call run_pipeline() and receive
 a structured SimulationOutput — they never import from individual subsystems.
 
 Usage:
-    from backend.simulation_controller import SimulationController, SimulationOutput
-    from backend.core_models import SimulationConfig, BeamParameters
+    from simulation_core.simulation_controller import SimulationController, SimulationOutput
+    from simulation_core.core_models.models import SimulationConfig, BeamParameters
 
     config = SimulationConfig(
         run_id="lhc_run3",
@@ -30,7 +30,7 @@ from __future__ import annotations
 import time
 import logging
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from simulation_core.core_models.models import (
     ParticleState,
@@ -56,12 +56,8 @@ from simulation_core.event_reconstruction import EventReconstructor
 from simulation_core.analysis import PhysicsAnalyser
 
 log = logging.getLogger("simulation_controller")
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SimulationOutput — the clean interface to external consumers
-# ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class StageMetrics:
@@ -82,17 +78,17 @@ class SimulationOutput:
     """
     run_id: str
     config: SimulationConfig
-    beam_particles:   List[ParticleState]
-    collision_events: List[CollisionEvent]
-    detector_hits:    List[DetectorHit]
-    reco_events:      List[ReconstructedEvent]
-    analysis_results: List[AnalysisResult]
-    stage_metrics:    List[StageMetrics] = field(default_factory=list)
+    beam_particles:   list[ParticleState]
+    collision_events: list[CollisionEvent]
+    detector_hits:    list[DetectorHit]
+    reco_events:      list[ReconstructedEvent]
+    analysis_results: list[AnalysisResult]
+    stage_metrics:    list[StageMetrics] = field(default_factory=list)
     total_duration_s: float = 0.0
     success: bool = True
     error_message: str = ""
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """Compact summary dict — suitable for API serialisation."""
         return {
             "run_id": self.run_id,
@@ -111,19 +107,15 @@ class SimulationOutput:
             "analysis_highlights": [r.as_dict() for r in self.analysis_results[:5]],
         }
 
-    def collision_event_dicts(self) -> List[Dict]:
+    def collision_event_dicts(self) -> list[dict]:
         return [e.as_dict() for e in self.collision_events]
 
-    def reco_event_dicts(self) -> List[Dict]:
+    def reco_event_dicts(self) -> list[dict]:
         return [e.as_dict() for e in self.reco_events]
 
-    def analysis_result_dicts(self) -> List[Dict]:
+    def analysis_result_dicts(self) -> list[dict]:
         return [r.as_dict() for r in self.analysis_results]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SimulationController — the pipeline engine
-# ─────────────────────────────────────────────────────────────────────────────
 
 class SimulationController:
     """
@@ -141,11 +133,11 @@ class SimulationController:
 
     def __init__(self, config: SimulationConfig = None):
         self.config = config or SimulationConfig()
-        self._metrics: List[StageMetrics] = []
+        self._metrics: list[StageMetrics] = []
 
-    # ── Stage 1: Beam Generation ─────────────────────────────────────────────
+    # Stage 1: Beam Generation
 
-    def _stage_beam_generation(self) -> List[ParticleState]:
+    def _stage_beam_generation(self) -> list[ParticleState]:
         """Generate the initial beam bunch using BeamSource."""
         t0 = time.perf_counter()
         log.info(f"[Stage 1] Beam generation — species={self.config.beam.species}, "
@@ -160,9 +152,9 @@ class SimulationController:
         log.info(f"[Stage 1] ✓ {len(particles)} particles in {duration:.4f}s")
         return particles
 
-    # ── Stage 2: Accelerator Transport ──────────────────────────────────────
+    # Stage 2: Accelerator Transport
 
-    def _stage_accelerator(self, particles: List[ParticleState]) -> List[ParticleState]:
+    def _stage_accelerator(self, particles: list[ParticleState]) -> list[ParticleState]:
         """Transport beam particles through the accelerator lattice to the IP."""
         t0 = time.perf_counter()
         log.info("[Stage 2] Accelerator transport")
@@ -188,9 +180,9 @@ class SimulationController:
         log.info(f"[Stage 2] ✓ {len(alive)} alive at IP ({lost} lost) in {duration:.4f}s")
         return transported
 
-    # ── Stage 3: Collision Engine ────────────────────────────────────────────
+    # Stage 3: Collision Engine
 
-    def _stage_collisions(self, particles: List[ParticleState]) -> List[CollisionEvent]:
+    def _stage_collisions(self, particles: list[ParticleState]) -> list[CollisionEvent]:
         """Find collision pairs and run the full QCD+shower+hadron pipeline."""
         t0 = time.perf_counter()
         log.info("[Stage 3] Collision engine")
@@ -209,23 +201,23 @@ class SimulationController:
                  f"in {duration:.4f}s")
         return events
 
-    # ── Stage 4: Detector Simulation ────────────────────────────────────────
+    # Stage 4: Detector Simulation
 
     def _stage_detector(
-        self, events: List[CollisionEvent]
-    ) -> List[DetectorHit]:
+        self, events: list[CollisionEvent]
+    ) -> list[DetectorHit]:
         """Simulate detector response for all final-state particles."""
         t0 = time.perf_counter()
         log.info("[Stage 4] Detector simulation")
 
         sim = DetectorSimulator(seed=self.config.random_seed)
-        all_hits: List[DetectorHit] = []
+        all_hits: list[DetectorHit] = []
 
         for event in events:
             hits = sim.simulate_detector(event.final_state)
             all_hits.extend(hits)
 
-        by_layer: Dict[str, int] = {}
+        by_layer: dict[str, int] = {}
         for h in all_hits:
             by_layer[h.detector_layer] = by_layer.get(h.detector_layer, 0) + 1
 
@@ -235,13 +227,13 @@ class SimulationController:
         log.info(f"[Stage 4] ✓ {len(all_hits)} detector hits in {duration:.4f}s  {by_layer}")
         return all_hits
 
-    # ── Stage 5: Event Reconstruction ───────────────────────────────────────
+    # Stage 5: Event Reconstruction
 
     def _stage_reconstruction(
         self,
-        hits: List[DetectorHit],
-        events: List[CollisionEvent],
-    ) -> List[ReconstructedEvent]:
+        hits: list[DetectorHit],
+        events: list[CollisionEvent],
+    ) -> list[ReconstructedEvent]:
         """Reconstruct tracks, jets, vertices, and MET from raw hits."""
         t0 = time.perf_counter()
         log.info("[Stage 5] Event reconstruction")
@@ -251,15 +243,14 @@ class SimulationController:
             min_jet_pt_gev=self.config.min_jet_pt_gev,
         )
 
-        # Associate hits to events by particle ID
-        reco_events: List[ReconstructedEvent] = []
+        reco_events: list[ReconstructedEvent] = []
 
         if not events:
             return reco_events
 
-        # For simplicity: reconstruct all hits as one combined event per collision event
-        # In a real pipeline, hits would be associated by bunch crossing
-        hit_by_pid: Dict[int, List[DetectorHit]] = {}
+        # Associate hits to collision events by particle ID.
+        # In a real pipeline hits would be associated by bunch crossing timestamp.
+        hit_by_pid: dict[int, list[DetectorHit]] = {}
         for h in hits:
             hit_by_pid.setdefault(h.particle_id, []).append(h)
 
@@ -278,11 +269,11 @@ class SimulationController:
                  f"{n_tracks} tracks, {n_jets} jets in {duration:.4f}s")
         return reco_events
 
-    # ── Stage 6: Physics Analysis ────────────────────────────────────────────
+    # Stage 6: Physics Analysis
 
     def _stage_analysis(
-        self, reco_events: List[ReconstructedEvent]
-    ) -> List[AnalysisResult]:
+        self, reco_events: list[ReconstructedEvent]
+    ) -> list[AnalysisResult]:
         """Run physics analysis modules on the reconstructed event collection."""
         t0 = time.perf_counter()
         log.info("[Stage 6] Physics analysis")
@@ -302,7 +293,7 @@ class SimulationController:
                  f"({len(discoveries)} discovery-level, {len(evidence)} evidence-level)")
         return results
 
-    # ── Master pipeline ──────────────────────────────────────────────────────
+    # Master pipeline
 
     def run_pipeline(self) -> SimulationOutput:
         """
@@ -323,7 +314,7 @@ class SimulationController:
             transported = self._stage_accelerator(beam_particles)
 
             # Stage 3: Collisions (run n_events times or until pairs exhausted)
-            all_events: List[CollisionEvent] = []
+            all_events: list[CollisionEvent] = []
             all_particles = list(transported)
 
             # For multiple collision events, regenerate beam bunches
@@ -390,9 +381,9 @@ class SimulationController:
                 error_message=str(exc),
             )
 
-    # ── Convenience single-event API ─────────────────────────────────────────
+    # Convenience single-event API
 
-    def run_single_event(self, particles: List[ParticleState]) -> Optional[SimulationOutput]:
+    def run_single_event(self, particles: list[ParticleState]) -> SimulationOutput | None:
         """
         Run a single-event pipeline given pre-built beam particles.
         Useful for testing individual collision scenarios.

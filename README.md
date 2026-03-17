@@ -1,49 +1,55 @@
 # Particle Stimulator
 
-## Authoritative Runtime
+A Monte Carlo particle physics simulator modelling proton-proton collisions at LHC energies. The pipeline covers beam generation, accelerator transport, hard scattering (QCD 2→2), parton shower, hadronisation, detector simulation, event reconstruction, and physics analysis. A React/Three.js frontend streams live results via WebSocket.
+
+## Architecture
 
 ```text
 src/
-  web/               HTTP API, websocket stream, ML service, static serving
-  simulation_core/   Integrated simulation pipeline
-  analysis/          Offline Higgs training utilities
+  simulation_core/   Full simulation pipeline (beam → collision → detector → analysis)
+  web/               HTTP API, WebSocket event stream, ML service, static file serving
+  analysis/          Offline Higgs classifier training utilities
 
 frontend/
-  src/               React/Vite frontend runtime
+  src/               React/Vite visualisation and control surface
 
 backend/
-  server.py          Thin launcher for web.server + web.socket_server
+  server.py          Entry point: starts web.server + web.socket_server
 
 tests/
-  runtime/           Active runtime validation
-  legacy/            Archived test coverage for removed systems
+  runtime/           Active integration and unit tests
+  legacy/            Archived tests for removed subsystems
 
 archive/
-  backend_platform/  Orphan backend platform tree
-  legacy_simulator/  Pre-simulation_core engine and examples
+  backend_platform/  Decommissioned FastAPI backend
+  legacy_simulator/  Pre-simulation_core engine prototypes
   frontend_artifacts/
 ```
 
+The simulation pipeline is a single-pass staged design. Each stage (`BeamSource → BeamDynamics → CollisionEngine → DetectorSimulator → EventReconstructor → PhysicsAnalyser`) is self-contained and communicates only through `simulation_core.core_models` types — no stage imports from another stage's internals. This keeps the data flow explicit and makes individual stages testable in isolation.
+
+The HTTP API is a plain `ThreadingHTTPServer` (no framework dependency). The WebSocket event stream uses `websockets`. The ML service wraps scikit-learn/XGBoost behind a training thread so inference never blocks the API.
+
 ## Active Entry Points
 
-- Backend HTTP API: [server.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/server.py)
-- Backend event stream: [socket_server.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/socket_server.py)
-- Backend simulation adapter: [service.py](/Users/fallofpheonix/Project/ParticleStimulator/src/web/service.py)
-- Simulation engine: [simulation_core](/Users/fallofpheonix/Project/ParticleStimulator/src/simulation_core)
-- Analysis package: [analysis](/Users/fallofpheonix/Project/ParticleStimulator/src/analysis)
-- Frontend runtime: [frontend/src](/Users/fallofpheonix/Project/ParticleStimulator/frontend/src)
-- Backend launcher: [backend/server.py](/Users/fallofpheonix/Project/ParticleStimulator/backend/server.py)
+- HTTP API: [`src/web/server.py`](src/web/server.py)
+- WebSocket event stream: [`src/web/socket_server.py`](src/web/socket_server.py)
+- Simulation adapter: [`src/web/service.py`](src/web/service.py)
+- Simulation pipeline: [`src/simulation_core/`](src/simulation_core/)
+- Higgs analysis: [`src/analysis/`](src/analysis/)
+- Frontend: [`frontend/src/`](frontend/src/)
+- Server launcher: [`backend/server.py`](backend/server.py)
 
 ## API Surface
 
-- `GET /api/health`
-- `GET /api/defaults`
-- `GET /api/events/recent`
-- `GET /api/ml/status`
-- `POST /api/simulate`
-- `POST /api/ml/train`
-- `POST /api/ml/predict`
-- `ws://127.0.0.1:8001/events`
+- `GET /api/health` — liveness + component status
+- `GET /api/defaults` — default simulation parameters
+- `GET /api/events/recent` — last N collision events
+- `GET /api/ml/status` — training job status and metrics
+- `POST /api/simulate` — run a simulation and return results
+- `POST /api/ml/train` — start a background training job
+- `POST /api/ml/predict` — classify a single event (requires trained model)
+- `ws://127.0.0.1:8001/events` — live event stream
 
 ## Packaging
 

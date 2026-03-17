@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import math
 import itertools
-from typing import List, Tuple, Optional, Dict
 
 import numpy as np
 
@@ -33,25 +32,19 @@ _jet_id_counter   = itertools.count(1)
 _vtx_id_counter   = itertools.count(1)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# track_reconstruction.py — hit grouping and seed finding
-# ─────────────────────────────────────────────────────────────────────────────
 
 TRACKER_LAYER_ORDER = ["tracker_0", "tracker_1", "tracker_2", "tracker_3"]
 
 
-def group_hits_by_particle(hits: List[DetectorHit]) -> Dict[int, List[DetectorHit]]:
+def group_hits_by_particle(hits: list[DetectorHit]) -> dict[int, list[DetectorHit]]:
     """Group tracker hits by the originating particle ID (truth-level seeding)."""
-    groups: Dict[int, List[DetectorHit]] = {}
+    groups: dict[int, list[DetectorHit]] = {}
     for h in hits:
         if h.detector_layer.startswith("tracker"):
             groups.setdefault(h.particle_id, []).append(h)
     return groups
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# kalman_filter.py — 1D Kalman filter for track parameter estimation
-# ─────────────────────────────────────────────────────────────────────────────
 
 class KalmanFilter1D:
     """
@@ -66,7 +59,7 @@ class KalmanFilter1D:
         self.process_noise = process_noise
         self.measurement_noise = measurement_noise
 
-    def filter(self, measurements: List[float]) -> Tuple[float, float]:
+    def filter(self, measurements: list[float]) -> tuple[float, float]:
         """
         Run the Kalman filter over a sequence of measurements.
 
@@ -93,7 +86,7 @@ class KalmanFilter1D:
         return x_est, P
 
 
-def fit_track(hits: List[DetectorHit]) -> Tuple[Vec3, float]:
+def fit_track(hits: list[DetectorHit]) -> tuple[Vec3, float]:
     """
     Fit a track to a set of detector hits using a simplified Kalman filter
     in each coordinate independently.
@@ -146,9 +139,6 @@ def fit_track(hits: List[DetectorHit]) -> Tuple[Vec3, float]:
     return (px, py, pz), chi2_ndf
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# track_reconstruction — main reconstructor
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TrackReconstructor:
     """
@@ -159,7 +149,7 @@ class TrackReconstructor:
         self.min_hits = min_hits
         self.max_chi2_ndf = max_chi2_ndf
 
-    def reconstruct(self, hits: List[DetectorHit]) -> List[ReconstructedTrack]:
+    def reconstruct(self, hits: list[DetectorHit]) -> list[ReconstructedTrack]:
         """
         Reconstruct tracks from all tracker hits.
 
@@ -198,9 +188,6 @@ class TrackReconstructor:
         return tracks
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# vertex_finding.py — primary vertex reconstruction
-# ─────────────────────────────────────────────────────────────────────────────
 
 class VertexFinder:
     """
@@ -217,8 +204,8 @@ class VertexFinder:
 
     def find_vertices(
         self,
-        tracks: List[ReconstructedTrack],
-    ) -> List[ReconstructedVertex]:
+        tracks: list[ReconstructedTrack],
+    ) -> list[ReconstructedVertex]:
         """
         Find primary (and optionally secondary) vertices.
 
@@ -273,14 +260,11 @@ class VertexFinder:
         return [vtx]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# jet_clustering.py — anti-kT algorithm
-# ─────────────────────────────────────────────────────────────────────────────
 
 class PseudoJet:
     """Lightweight jet candidate for the anti-kT clustering."""
 
-    def __init__(self, e: float, px: float, py: float, pz: float, hits: List[DetectorHit] = None):
+    def __init__(self, e: float, px: float, py: float, pz: float, hits: list[DetectorHit] = None):
         self.e = e; self.px = px; self.py = py; self.pz = pz
         self.hits = hits or []
 
@@ -320,10 +304,10 @@ class PseudoJet:
 
 
 def anti_kt_cluster(
-    deposits: List[DetectorHit],
+    deposits: list[DetectorHit],
     R: float = 0.4,
     min_pt_gev: float = 5.0,
-) -> List[PseudoJet]:
+) -> list[PseudoJet]:
     """
     Anti-kT jet clustering algorithm.
 
@@ -411,7 +395,7 @@ class JetClusterer:
         self.jet_radius = jet_radius
         self.min_pt_gev = min_pt_gev
 
-    def cluster(self, hits: List[DetectorHit]) -> List[ReconstructedJet]:
+    def cluster(self, hits: list[DetectorHit]) -> list[ReconstructedJet]:
         """
         Run anti-kT clustering on all calorimeter hits.
 
@@ -439,11 +423,8 @@ class JetClusterer:
         return jets
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# missing_energy.py — compute MET from calorimeter imbalance
-# ─────────────────────────────────────────────────────────────────────────────
 
-def compute_missing_energy(hits: List[DetectorHit]) -> Tuple[float, float]:
+def compute_missing_energy(hits: list[DetectorHit]) -> tuple[float, float]:
     """
     Compute Missing Transverse Energy (MET) from calorimeter momentum imbalance.
 
@@ -474,9 +455,6 @@ def compute_missing_energy(hits: List[DetectorHit]) -> Tuple[float, float]:
     return met_gev, met_phi
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EventReconstructor — full reconstruction pipeline
-# ─────────────────────────────────────────────────────────────────────────────
 
 class EventReconstructor:
     """
@@ -501,7 +479,7 @@ class EventReconstructor:
 
     def reconstruct_event(
         self,
-        hits: List[DetectorHit],
+        hits: list[DetectorHit],
         event_id: int = 0,
     ) -> ReconstructedEvent:
         """

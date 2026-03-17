@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 from statistics import NormalDist
 import uuid
-from typing import List, Tuple, Optional, Dict, Callable
+from typing import Callable
 
 import numpy as np
 
@@ -32,9 +32,6 @@ from simulation_core.core_models.models import (
 )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# histogram_engine.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 class Histogram1D:
     """
@@ -67,7 +64,7 @@ class Histogram1D:
         self.counts[idx] += weight
         self.sumw2[idx]  += weight * weight
 
-    def fill_many(self, values: List[float], weights: List[float] = None) -> None:
+    def fill_many(self, values: list[float], weights: list[float] = None) -> None:
         if weights is None:
             weights = [1.0] * len(values)
         for v, w in zip(values, weights):
@@ -98,7 +95,7 @@ class Histogram1D:
         mean = self.mean()
         return float(math.sqrt(np.sum(self.counts * (centers - mean)**2) / total))
 
-    def peak_bin(self) -> Tuple[int, float]:
+    def peak_bin(self) -> tuple[int, float]:
         """Return (bin_index, peak_value) of the maximum bin."""
         idx = int(np.argmax(self.counts))
         return idx, self.bin_centers()[idx]
@@ -149,7 +146,7 @@ class HistogramEngine:
     """Registry of named histograms for a run."""
 
     def __init__(self):
-        self._histograms: Dict[str, Histogram1D] = {}
+        self._histograms: dict[str, Histogram1D] = {}
 
     def book(self, name: str, n_bins: int, x_min: float, x_max: float) -> Histogram1D:
         h = Histogram1D(name, n_bins, x_min, x_max)
@@ -160,20 +157,17 @@ class HistogramEngine:
         if name in self._histograms:
             self._histograms[name].fill(value, weight)
 
-    def get(self, name: str) -> Optional[Histogram1D]:
+    def get(self, name: str) -> Histogram1D | None:
         return self._histograms.get(name)
 
-    def all_histograms(self) -> Dict[str, Histogram1D]:
+    def all_histograms(self) -> dict[str, Histogram1D]:
         return dict(self._histograms)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# invariant_mass.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 def di_object_invariant_mass(
-    e1: float, p1: Tuple[float, float, float],
-    e2: float, p2: Tuple[float, float, float],
+    e1: float, p1: tuple[float, float, float],
+    e2: float, p2: tuple[float, float, float],
 ) -> float:
     """Compute invariant mass m_inv = √((E1+E2)² − (p1+p2)²) in GeV."""
     e_sum = e1 + e2
@@ -185,8 +179,8 @@ def di_object_invariant_mass(
 
 
 def all_pair_masses(
-    objects: List[Tuple[float, Tuple[float, float, float]]],
-) -> List[float]:
+    objects: list[tuple[float, tuple[float, float, float]]],
+) -> list[float]:
     """
     Compute invariant masses for all unique pairs.
 
@@ -206,7 +200,7 @@ def all_pair_masses(
 
 
 def compute_invariant_mass_spectrum(
-    events: List[ReconstructedEvent],
+    events: list[ReconstructedEvent],
     histogram: Histogram1D,
     min_jets: int = 2,
 ) -> Histogram1D:
@@ -238,9 +232,6 @@ def compute_invariant_mass_spectrum(
     return histogram
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# signal_background_model.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 def gaussian_signal(x: float, mu: float, sigma: float, amplitude: float) -> float:
     """Gaussian signal: A × exp(−(x−μ)² / (2σ²))."""
@@ -254,7 +245,7 @@ def exponential_background(x: float, norm: float, slope: float) -> float:
     return norm * math.exp(-slope * x)
 
 
-def polynomial_background(x: float, coefficients: List[float]) -> float:
+def polynomial_background(x: float, coefficients: list[float]) -> float:
     """Polynomial background: Σ c_i × x^i."""
     return sum(c * x**i for i, c in enumerate(coefficients))
 
@@ -276,9 +267,6 @@ def signal_plus_background(
     return sig + bg
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# likelihood_analysis.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 def poisson_log_likelihood(
     observed: np.ndarray,
@@ -311,7 +299,7 @@ class LikelihoodFitter:
 
     def __init__(self, histogram: Histogram1D):
         self.histogram = histogram
-        self.result: Optional[Dict] = None
+        self.result: Dict | None = None
 
     def fit(
         self,
@@ -392,9 +380,6 @@ class LikelihoodFitter:
         return self.result
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# significance_test.py
-# ─────────────────────────────────────────────────────────────────────────────
 
 def profile_likelihood_significance(n_signal: float, n_background: float) -> float:
     """
@@ -434,16 +419,16 @@ def pvalue_to_sigma(p_value: float) -> float:
 
 
 class _FallbackOptimizeResult:
-    def __init__(self, x: List[float], fun: float):
+    def __init__(self, x: list[float], fun: float):
         self.x = np.array(x, dtype=np.float64)
         self.fun = float(fun)
         self.success = True
 
 
 def _fallback_minimize(
-    objective: Callable[[List[float]], float],
-    x0: List[float],
-    bounds: List[Tuple[Optional[float], Optional[float]]],
+    objective: Callable[[list[float]], float],
+    x0: list[float],
+    bounds: list[tuple[float | None, float | None]],
 ) -> _FallbackOptimizeResult:
     """Bounded coordinate search used when scipy is unavailable."""
     current = list(x0)
@@ -476,9 +461,6 @@ def _fallback_minimize(
     return _FallbackOptimizeResult(current, best)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PhysicsAnalyser — top-level analysis engine
-# ─────────────────────────────────────────────────────────────────────────────
 
 class PhysicsAnalyser:
     """
@@ -490,7 +472,7 @@ class PhysicsAnalyser:
 
     def __init__(
         self,
-        mass_range_gev: Tuple[float, float] = (0.0, 500.0),
+        mass_range_gev: tuple[float, float] = (0.0, 500.0),
         n_mass_bins: int = 50,
         higgs_mass_gev: float = 125.1,
     ):
@@ -508,7 +490,7 @@ class PhysicsAnalyser:
         self.h_met     = self.engine.book("met",             50, 0.0,  500.0)
         self.h_n_tracks= self.engine.book("n_tracks",        30, 0.0,   30.0)
 
-    def analyse_events(self, events: List[ReconstructedEvent]) -> List[AnalysisResult]:
+    def analyse_events(self, events: list[ReconstructedEvent]) -> list[AnalysisResult]:
         """
         Run all analysis modules on a batch of reconstructed events.
 
@@ -553,7 +535,7 @@ class PhysicsAnalyser:
             metadata=h.as_dict(),
         )
 
-    def _fit_mass_spectrum(self) -> Optional[AnalysisResult]:
+    def _fit_mass_spectrum(self) -> AnalysisResult | None:
         """Fit the di-jet mass histogram with signal + background model."""
         fitter = LikelihoodFitter(self.h_dijet_mass)
         mu_init = self.higgs_mass_gev
@@ -580,7 +562,7 @@ class PhysicsAnalyser:
             },
         )
 
-    def _summary_analysis(self, events: List[ReconstructedEvent]) -> AnalysisResult:
+    def _summary_analysis(self, events: list[ReconstructedEvent]) -> AnalysisResult:
         """Compute summary statistics across all events."""
         n = len(events)
         mean_jets = sum(e.n_jets for e in events) / max(n, 1)
